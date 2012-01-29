@@ -24,10 +24,9 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-
-
-    RiakEndpoint =
-        {qlg_riak_srv, {qlg_riak_srv, start_link, []},
-         permament, 5000, worker, [qlg_riak_srv]},
-    {ok, { {one_for_one, 5, 10}, [RiakEndpoint]} }.
+    FetchPlayerPool =
+        {qlg_fetch_player_pool, {qlg_fetch_player_pool, start_link, []},
+         transient, infinity, supervisor, [qlg_fetch_player_pool]},
+    %% @todo FetchMatchPool as well
+    {ok, { {one_for_one, 5, 10}, [FetchPlayerPool]} }.
 

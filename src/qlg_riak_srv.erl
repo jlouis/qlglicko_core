@@ -8,6 +8,8 @@
 %%%-------------------------------------------------------------------
 -module(qlg_riak_srv).
 
+-include("match.hrl").
+
 -behaviour(gen_server).
 
 %% API
@@ -22,12 +24,6 @@
 -define(SERVER, ?MODULE). 
 
 -record(state, { socket }).
-
--record(match,
-        { winner,
-          winner_score,
-          loser,
-          loser_score }).
 
 %%%===================================================================
 
@@ -131,10 +127,10 @@ extract_scores(Obj) ->
     end.
 
 mk_match({P1, S1}, {P2,S2}) when S1 > S2 ->
-    #match { winner = P1, winner_score = S1,
+    #duel_match { winner = P1, winner_score = S1,
              loser  = P2, loser_score = S2 };
 mk_match({P1, S1}, {P2, S2}) when S2 > S1 ->
-    #match { winner = P2, winner_score = S2,
+    #duel_match { winner = P2, winner_score = S2,
              loser = P1, loser_score = S1 }.
 
 create_term(Bucket, Id, Term) ->

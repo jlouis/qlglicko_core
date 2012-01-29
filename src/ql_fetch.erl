@@ -8,7 +8,7 @@ player_matches(Player) ->
     URL = week_matches_url(Player, calendar:universal_time()),
     case request(URL) of
         {ok, Body} ->
-            parse_matches(Body);
+            {ok, parse_matches(Body)};
         {error, Reason} ->
             {error, Reason}
     end.

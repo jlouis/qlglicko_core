@@ -6,5 +6,6 @@
               {mod,{qlglicko_app,[]}},
               {env,[]},
               {modules,[dhs2011,dhw2011,glicko2,glicko_bg,glicko_db,iem5,
-                        ql_fetch,qlg_riak_srv,qlglicko_app,qlglicko_sup,
+                        ql_fetch,qlg_fetch_player,qlg_fetch_player_pool,
+                        qlg_pgsql_srv,qlg_riak_srv,qlglicko_app,qlglicko_sup,
                         qlrank,quakecon2011]}]}.
