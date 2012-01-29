@@ -1,0 +1,10 @@
+{application,qlglicko,
+             [{description,[]},
+              {vsn,"1"},
+              {registered,[]},
+              {applications,[kernel,stdlib,jobs,inets,gproc,riakc]},
+              {mod,{qlglicko_app,[]}},
+              {env,[]},
+              {modules,[dhs2011,dhw2011,glicko2,glicko_bg,glicko_db,iem5,
+                        ql_fetch,qlg_riak_srv,qlglicko_app,qlglicko_sup,
+                        qlrank,quakecon2011]}]}.

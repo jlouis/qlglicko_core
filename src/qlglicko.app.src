@@ -1,0 +1,16 @@
+{application, qlglicko,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  jobs,
+                  inets,
+                  gproc,
+                  riakc
+                 ]},
+  {mod, { qlglicko_app, []}},
+  {env, []}
+ ]}.
