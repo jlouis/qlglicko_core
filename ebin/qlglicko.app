@@ -2,7 +2,7 @@
              [{description,[]},
               {vsn,"1"},
               {registered,[]},
-              {applications,[kernel,stdlib,jobs,inets,gproc,riakc]},
+              {applications,[kernel,stdlib,lager,jobs,inets,gproc,epgsql]},
               {mod,{qlglicko_app,[]}},
               {env,[]},
               {modules,[dhs2011,dhw2011,glicko2,glicko_bg,glicko_db,iem5,

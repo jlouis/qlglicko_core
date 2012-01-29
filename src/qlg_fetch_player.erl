@@ -35,8 +35,12 @@ handle_call(_Request, _From, State) ->
 
 %% @private
 handle_cast(run, State) ->
-    fetch_and_store(State),
-    {stop, normal, State};
+    %% @todo handle errors and overloads
+    case jobs:ask(ql_fetch) of
+        {ok, _Opaque} ->
+            fetch_and_store(State),
+            {stop, normal, State}
+    end;
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
