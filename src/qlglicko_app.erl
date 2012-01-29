@@ -21,3 +21,4 @@ stop(_State) ->
 read_configuration() ->
     gproc:get_set_env(l, qlglicko, riak_host, [app_env, error]),
     ok.
+

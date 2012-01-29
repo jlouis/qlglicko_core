@@ -27,6 +27,8 @@ init([]) ->
     FetchPlayerPool =
         {qlg_fetch_player_pool, {qlg_fetch_player_pool, start_link, []},
          transient, infinity, supervisor, [qlg_fetch_player_pool]},
-    %% @todo FetchMatchPool as well
-    {ok, { {one_for_one, 5, 10}, [FetchPlayerPool]} }.
+    FetchMatchPool =
+        {qlg_fetch_match_pool, {qlg_fetch_match_pool, start_link, []},
+         transient, infinity, supervisor, [qlg_fetch_match_pool]},
+    {ok, { {one_for_one, 5, 10}, [FetchPlayerPool, FetchMatchPool]} }.
 

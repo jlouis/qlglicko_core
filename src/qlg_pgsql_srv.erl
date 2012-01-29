@@ -12,6 +12,7 @@
 %% API
 -export([start_link/0]).
 -export([store_match/2,
+         select_player/1,
          refresh_player/1,
          mk_player/1]).
 
@@ -35,6 +36,9 @@ start_link() ->
 mk_player(Name) ->
     gen_server:call(?MODULE, {mk_player, Name}).
 
+select_player(Name) ->
+    gen_server:call(?MODULE, {select_player, Name}).
+
 refresh_player(Name) ->
     gen_server:call(?MODULE, {refresh_player, Name}).
 
@@ -54,6 +58,9 @@ init([]) ->
     {ok, #state{ conn = C}}.
 
 %% @private
+handle_call({select_player, Name}, _From, #state { conn = C } = State) ->
+    Reply = ex_select_player(C, Name),
+    {reply, Reply, State};
 handle_call({mk_player, Name}, _From, #state { conn = C } = State) ->
     Reply = ex_store_player(C, Name),
     {reply, Reply, State};
@@ -123,6 +130,10 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
+
+ex_select_player(C, Name) ->
+    pgsql:equery(C, "SELECT name FROM player WHERE name = $1",
+                 [Name]).
 
 ex_refresh_player(C, Name) ->
     {ok, 1} = pgsql:equery(C,
