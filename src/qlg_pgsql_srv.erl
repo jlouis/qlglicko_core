@@ -13,6 +13,8 @@
 -export([start_link/0]).
 -export([store_match/2,
          select_player/1,
+         players_to_refresh/0,
+         matches_to_fetch/0,
          refresh_player/1,
          mk_player/1]).
 
@@ -39,6 +41,12 @@ mk_player(Name) ->
 select_player(Name) ->
     gen_server:call(?MODULE, {select_player, Name}).
 
+players_to_refresh() ->
+    gen_server:call(?MODULE, players_to_refresh).
+
+matches_to_fetch() ->
+    gen_server:call(?MODULE, matches_to_fetch).
+
 refresh_player(Name) ->
     gen_server:call(?MODULE, {refresh_player, Name}).
 
@@ -58,6 +66,12 @@ init([]) ->
     {ok, #state{ conn = C}}.
 
 %% @private
+handle_call(matches_to_fetch, _From, #state { conn = C } = State) ->
+    Reply = ex_matches_to_fetch(C),
+    {reply, Reply, State};
+handle_call(players_to_refresh, _From, #state { conn = C } = State) ->
+    Reply = ex_players_to_refresh(C),
+    {reply, Reply, State};
 handle_call({select_player, Name}, _From, #state { conn = C } = State) ->
     Reply = ex_select_player(C, Name),
     {reply, Reply, State};
@@ -78,58 +92,28 @@ handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 
-%%--------------------------------------------------------------------
 %% @private
-%% @doc
-%% Handling cast messages
-%%
-%% @spec handle_cast(Msg, State) -> {noreply, State} |
-%%                                  {noreply, State, Timeout} |
-%%                                  {stop, Reason, State}
-%% @end
-%%--------------------------------------------------------------------
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-%%--------------------------------------------------------------------
 %% @private
-%% @doc
-%% Handling all non call/cast messages
-%%
-%% @spec handle_info(Info, State) -> {noreply, State} |
-%%                                   {noreply, State, Timeout} |
-%%                                   {stop, Reason, State}
-%% @end
-%%--------------------------------------------------------------------
 handle_info(_Info, State) ->
     {noreply, State}.
 
-%%--------------------------------------------------------------------
 %% @private
-%% @doc
-%% This function is called by a gen_server when it is about to
-%% terminate. It should be the opposite of Module:init/1 and do any
-%% necessary cleaning up. When it returns, the gen_server terminates
-%% with Reason. The return value is ignored.
-%%
-%% @spec terminate(Reason, State) -> void()
-%% @end
-%%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
     ok.
 
-%%--------------------------------------------------------------------
 %% @private
-%% @doc
-%% Convert process state when code is changed
-%%
-%% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
-%% @end
-%%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
+ex_matches_to_fetch(C) ->
+    pgsql:equery(C, "SELECT id FROM matches_to_refresh LIMIT 300").
+
+ex_players_to_refresh(C) ->
+    pgsql:equery(C, "SELECT name FROM raw_match_missing LIMIT 300").
 
 ex_select_player(C, Name) ->
     pgsql:equery(C, "SELECT name FROM player WHERE name = $1",

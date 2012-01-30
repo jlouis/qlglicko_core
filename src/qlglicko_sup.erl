@@ -30,5 +30,15 @@ init([]) ->
     FetchMatchPool =
         {qlg_fetch_match_pool, {qlg_fetch_match_pool, start_link, []},
          transient, infinity, supervisor, [qlg_fetch_match_pool]},
-    {ok, { {one_for_one, 5, 10}, [FetchPlayerPool, FetchMatchPool]} }.
+    PgsqlSrv =
+        {qlg_pgsql_srv, {qlg_pgsql_srv, start_link, []},
+         permanent, 5000, worker, [qlg_pgsql_srv]},
+    Timer =
+        {qlglicko_timer, {qlglicko_timer, start_link, []},
+         permanent, 5000, worker, [qlglicko_timer]},
+    {ok, { {one_for_one, 5, 10}, [FetchPlayerPool,
+                                  FetchMatchPool,
+                                  PgsqlSrv,
+                                  Timer]} }.
+
 
