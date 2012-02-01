@@ -40,9 +40,12 @@ week_matches_url(Player, {{YYYY, MM, DD}, _}) ->
     string:join([Base, Player, lists:flatten(WeekStr)], "/").
 
 request(URL) ->
+    From = now(),
     case httpc:request(get, {URL, []}, [], [{body_format, binary}]) of
         {ok, {{_HTTPVer, 200, _RPhrase}, _Headers, Body}} ->
-                {ok, Body};
+            To = now(),
+            ql_response_time:report(From, To),
+            {ok, Body};
         {ok, Otherwise} ->
             {error, {status_code, Otherwise}};
         {error, Reason} ->

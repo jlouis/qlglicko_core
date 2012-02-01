@@ -6,12 +6,21 @@
          sample/2,
          handle_msg/3,
          calc/2]).
--export([report/1]).
+-export([report/1, report/2]).
 
 %% Report a response time event
 report(Ms) ->
     ets:update_counter(?TAB, count, 1),
     ets:update_counter(?TAB, sum, Ms).
+
+report(From, To) ->
+    report(calc_interval(From, To)).
+
+calc_interval({FMega, FSec, FMicro} = F, {TMega, TSec, TMicro} = T)
+  when F < T ->
+    FMs = (FMega * 1000000 + FSec) * 1000 + (FMicro / 1000),
+    TMs = (TMega * 1000000 + TSec) * 1000 + (TMicro / 1000),
+    TMs - FMs.
 
 -record(state, {levels = []}).
 
