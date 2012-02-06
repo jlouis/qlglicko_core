@@ -20,9 +20,14 @@ start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 fetch_player(Name) ->
-    {ok, Pid} = supervisor:start_child(?SERVER, [Name]),
-    qlg_fetch_player:run(Pid),
-    {ok, Pid}.
+    case gproc:lookup_local_name({fetch_player, Name}) of
+        undefined ->
+            {ok, Pid} = supervisor:start_child(?SERVER, [Name]),
+            qlg_fetch_player:run(Pid),
+            {ok, Pid};
+        P when is_pid(P) ->
+            {error, {already_started, Name}}
+    end.
 
 %%%===================================================================
 

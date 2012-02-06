@@ -4,7 +4,7 @@
 -export([player_matches/1,
          match/1]).
 
-player_matches(Player) ->
+player_matches(Player) when is_list(Player) ->
     URL = week_matches_url(Player, calendar:universal_time()),
     case request(URL) of
         {ok, Body} ->
@@ -40,11 +40,11 @@ week_matches_url(Player, {{YYYY, MM, DD}, _}) ->
     string:join([Base, Player, lists:flatten(WeekStr)], "/").
 
 request(URL) ->
-    From = now(),
+    %% From = now(),
     case httpc:request(get, {URL, []}, [], [{body_format, binary}]) of
         {ok, {{_HTTPVer, 200, _RPhrase}, _Headers, Body}} ->
-            To = now(),
-            ql_response_time:report(From, To),
+            %% To = now(),
+            %% ql_response_time:report(From, To),
             {ok, Body};
         {ok, Otherwise} ->
             {error, {status_code, Otherwise}};

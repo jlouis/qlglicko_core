@@ -61,11 +61,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 fetch_and_store(#state { id = Id }) ->
+    lager:debug("Fetching match ~p", [Id]),
     {ok, JSON} = ql_fetch:match(Id),
     persist_duel_match(Id, JSON),
     %% Do this last as a confirmation we got through the other parts
     %% This ensures an idempotent database.
-    {ok, 1} = qlg_pgsql_srv:update_match(
+    {ok, 1} = qlg_pgsql_srv:store_match(
                 Id,
                 term_to_binary(JSON, [compressed])),
     ok.
@@ -77,11 +78,11 @@ persist_duel_match(Id, JSON) ->
             %% Duel game type. And ranked. Find the winner and the loser
             [P1, P2] = proplists:get_value(<<"SCOREBOARD">>, JSON),
             Played = proplists:get_value(<<"GAME_TIMESTAMP">>, JSON),
-            M = mk_match(decode_timestamp(Played),
-                         extract_scores(P1),
-                         extract_scores(P2)),
-            add_new_player(P1),
-            add_new_player(P2),
+            P1S = extract_scores(P1),
+            P2S = extract_scores(P2),
+            M = mk_match(decode_timestamp(Played), P1S, P2S),
+            add_new_player(P1S),
+            add_new_player(P2S),
             qlg_pgsql_srv:store_match(Id, M),
             ok;
         {<<"duel">>, <<"0">>} ->
@@ -90,15 +91,15 @@ persist_duel_match(Id, JSON) ->
 
 add_new_player({Name, _, _}) ->
     case qlg_pgsql_srv:select_player(Name) of
-        {ok, []} ->
+        {ok, _, []} ->
             qlg_pgsql_srv:mk_player(Name);
-        {ok, [_|_]} ->
+        {ok, _, [_|_]} ->
             ok
     end.
 
 decode_timestamp(Bin) when is_binary(Bin) ->
     {ok, [Month, Day, Year, HH, MM, AMPM], ""} =
-        io_lib:fread("~u/~u/~u ~u:~u ~s"),
+        io_lib:fread("~u/~u/~u ~u:~u ~s", binary_to_list(Bin)),
     Date = {Year, Month, Day},
     Time = {case AMPM of
                 "AM" -> HH;

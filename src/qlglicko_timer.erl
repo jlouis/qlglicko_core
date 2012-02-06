@@ -60,13 +60,16 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 refill_players() ->
-    {ok, Players} =
+    {ok, _, Players} =
         qlg_pgsql_srv:players_to_refresh(),
-    [qlg_fetch_player_pool:fetch_player(P) || P <- Players],
+    lager:debug("Submitting ~B player fetch jobs", [length(Players)]),
+    [qlg_fetch_player_pool:fetch_player(binary_to_list(P))
+     || {P} <- Players],
     ok.
 
 refill_matches() ->
-    {ok, Matches} =
+    {ok, _, Matches} =
         qlg_pgsql_srv:matches_to_fetch(),
-    [qlg_fetch_match_pool:fetch_match(M) || M <- Matches],
+    lager:debug("Submitting ~B match fetch jobs", [length(Matches)]),
+    [qlg_fetch_match_pool:fetch_match(M) || {M} <- Matches],
     ok.
