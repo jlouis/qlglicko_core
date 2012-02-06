@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/1, run/1]).
+-export([start_link/2, run/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -11,12 +11,13 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, { name }).
+-record(state, { id,
+                 name }).
 
 %%%===================================================================
 
-start_link(Name) ->
-    gen_server:start_link(?MODULE, [Name], []).
+start_link(Id, Name) ->
+    gen_server:start_link(?MODULE, [Id, Name], []).
 
 run(Pid) ->
     gen_server:cast(Pid, run).
@@ -24,9 +25,9 @@ run(Pid) ->
 %%%===================================================================
 
 %% @private
-init([Name]) ->
+init([Id, Name]) ->
     true = gproc:add_local_name({fetch_player, Name}),
-    {ok, #state{ name = Name }}.
+    {ok, #state{ id = Id, name = Name }}.
 
 %% @private
 handle_call(_Request, _From, State) ->
@@ -58,9 +59,14 @@ code_change(_OldVsn, State, _Extra) ->
 
 %%%===================================================================
 
-fetch_and_store(#state { name = Name}) ->
+fetch_and_store(#state { id = Id, name = Name}) ->
     lager:debug("Refreshing player ~s", [Name]),
-    {ok, Matches} = ql_fetch:player_matches(Name),
-    [{ok, _} = qlg_pgsql_srv:store_match(M, null) || M <- Matches],
-    {ok, 1} = qlg_pgsql_srv:refresh_player(Name),
-    ok.
+    case qlg_pgsql_srv:should_player_be_refreshed(Id) of
+        true ->
+            {ok, Matches} = ql_fetch:player_matches(Id),
+            [{ok, _} = qlg_pgsql_srv:store_match(M, null) || M <- Matches],
+            {ok, 1} = qlg_pgsql_srv:refresh_player(Id),
+            ok;
+        false ->
+            ok
+    end.

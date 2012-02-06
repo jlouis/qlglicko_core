@@ -133,10 +133,10 @@ ex_matches_to_fetch(C) ->
     pgsql:equery(C, "SELECT id FROM matches_to_refresh LIMIT 300").
 
 ex_players_to_refresh(C) ->
-    pgsql:equery(C, "SELECT name FROM players_to_update LIMIT 300").
+    pgsql:equery(C, "SELECT id,name FROM players_to_update LIMIT 300").
 
 ex_select_player(C, Name) ->
-    pgsql:equery(C, "SELECT name FROM player WHERE name = $1",
+    pgsql:equery(C, "SELECT id,name FROM player WHERE name = $1",
                  [Name]).
 
 ex_refresh_player(C, Name) ->
@@ -148,7 +148,8 @@ ex_store_player(C, Name) ->
     {ok, 1} = pgsql:equery(C,
                            "INSERT INTO player (name, lastupdate)"
                            "VALUES ($1, '1970-01-01')",
-                           [Name]).
+                           [Name]),
+    ok.
 
 knows_match(C, Id) ->
     case pgsql:equery(C, "SELECT id FROM raw_match WHERE id = $1", [Id]) of

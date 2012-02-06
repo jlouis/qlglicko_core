@@ -4,7 +4,7 @@
 
 %% API
 -export([start_link/0,
-         fetch_player/1]).
+         fetch_player/2]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -19,10 +19,10 @@
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
-fetch_player(Name) ->
+fetch_player(Id, Name) ->
     case gproc:lookup_local_name({fetch_player, Name}) of
         undefined ->
-            {ok, Pid} = supervisor:start_child(?SERVER, [Name]),
+            {ok, Pid} = supervisor:start_child(?SERVER, [Id, Name]),
             qlg_fetch_player:run(Pid),
             {ok, Pid};
         P when is_pid(P) ->

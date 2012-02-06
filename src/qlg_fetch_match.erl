@@ -80,21 +80,25 @@ persist_duel_match(Id, JSON) ->
             Played = proplists:get_value(<<"GAME_TIMESTAMP">>, JSON),
             P1S = extract_scores(P1),
             P2S = extract_scores(P2),
-            M = mk_match(decode_timestamp(Played), P1S, P2S),
-            add_new_player(P1S),
-            add_new_player(P2S),
+            {ok, P1_Id} = add_new_player(P1S),
+            {ok, P2_Id} = add_new_player(P2S),
+            M = mk_match(decode_timestamp(Played),
+                         {P1_Id, P1S},
+                         {P2_Id, P2S}),
             qlg_pgsql_srv:store_match(Id, M),
             ok;
         {<<"duel">>, <<"0">>} ->
+            %% Unranked game, do not store it
             ok
     end.
 
-add_new_player({Name, _, _}) ->
+add_new_player({Name, _, _} = In) ->
     case qlg_pgsql_srv:select_player(Name) of
         {ok, _, []} ->
-            qlg_pgsql_srv:mk_player(Name);
-        {ok, _, [_|_]} ->
-            ok
+            ok = qlg_pgsql_srv:mk_player(Name),
+            add_new_player(In);
+        {ok, _, [{Id, Name}]} ->
+            {ok, Id}
     end.
 
 decode_timestamp(Bin) when is_binary(Bin) ->
@@ -125,11 +129,13 @@ decode_rank(<<"1">>) -> 1;
 decode_rank(<<"2">>) -> 2;
 decode_rank(<<"-1">>) -> 999.
 
-mk_match(Played, {P1, R1, S1}, {P2, R2, S2}) when R1 < R2 ->
+mk_match(Played, {Id1, {_P1, R1, S1}},
+                 {Id2, {_P2, R2, S2}}) when R1 < R2 ->
     #duel_match { played = Played,
-                  winner = P1, winner_score = S1,
-                  loser  = P2, loser_score = S2 };
-mk_match(Played, {P1, R1, S1}, {P2, R2, S2}) when R2 < R1 ->
+                  winner = Id1, winner_score = S1,
+                  loser  = Id2, loser_score = S2 };
+mk_match(Played, {Id1, {_P1, R1, S1}},
+                 {Id2, {_P2, R2, S2}}) when R2 < R1 ->
     #duel_match { played = Played,
-                  winner = P2, winner_score = S2,
-                  loser = P1, loser_score = S1 }.
+                  winner = Id2, winner_score = S2,
+                  loser = Id1, loser_score = S1 }.
