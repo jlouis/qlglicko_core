@@ -5,56 +5,35 @@
 -export([init/2,
          sample/2,
          handle_msg/3,
-         calc/2]).
--export([report/1, report/2]).
+         calc/2,
+         overload/1
+        ]).
 
-%% Report a response time event
-report(Ms) ->
-    ets:update_counter(?TAB, count, 1),
-    ets:update_counter(?TAB, sum, Ms).
+-record(state, {levels = [],
+                count  = 0 }).
 
-report(From, To) ->
-    report(calc_interval(From, To)).
-
-calc_interval({FMega, FSec, FMicro} = F, {TMega, TSec, TMicro} = T)
-  when F < T ->
-    FMs = (FMega * 1000000 + FSec) * 1000 + (FMicro / 1000),
-    TMs = (TMega * 1000000 + TSec) * 1000 + (TMicro / 1000),
-    TMs - FMs.
-
--record(state, {levels = []}).
-
-default_levels() -> [{4000,1},{8000,2},{12000,3}].
+default_levels() ->
+    [{3, 1}].
 
 init(_Name, Opts) ->
-    ets:new(?TAB, [named_table, public,
-                   {write_concurrency, true}]),
-    ets:insert(?TAB, {count, 0}),
-    ets:insert(?TAB, {sum, 0}),
     Levels = proplists:get_value(level, Opts, default_levels()),
-    {ok, #state { levels = Levels}}.
+    {ok, #state { levels = Levels, count = 0}}.
 
-handle_msg(_Msg, _Timestamp, ModS) ->
-    {ignore, ModS}.
+overload(Name) ->
+    jobs_sampler:tell_sampler(Name, overload).
 
-sample(_Timestamp, #state{} = S) ->
-    Result = fetch_from_ets(),
-    {Result, S}.
+handle_msg(overload, _T, #state { count = K } = S) ->
+    ok = lager:debug("Logging overload"),
+    {ignore, S#state { count = K+1}};
+handle_msg(Msg, _T, S) ->
+    ok = lager:debug("Ignoring message ~p", [Msg]),
+    {ignore, S}.
 
-fetch_from_ets() ->
-    %% For the time being we use a simple average sampler
-    Count = ets:lookup_element(?TAB, count, 2),
-    Sum   = ets:lookup_element(?TAB, sum, 2),
-    %% This may fluke in a race, but I don't care
-    %% Assumption: If the system is fast you can live with less
-    %% precise stats
-    ets:insert(?TAB, {count, 0}),
-    ets:insert(?TAB, {sum, 0}),
-    case Count of
-        0 -> undefined;
-        _ -> Sum / Count
-    end.
+sample(_T, #state { count = K} = S) ->
+    ok = lager:debug("Sampling, count ~B", [K]),
+    {K, S#state { count = case K of 0 -> 0;
+                               N  when N > 0 -> N-1 end}}.
 
-calc(History, #state{levels = Levels} = St) ->
+calc(History, #state{levels = Levels} = S) ->
     L = jobs_sampler:calc(value, Levels, History),
-    {[{response_time, L}], St}.
+    {[{response_time, L}], S}.

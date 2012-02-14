@@ -60,11 +60,11 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 fetch_and_store(#state { id = Id, name = Name}) ->
-    lager:debug("Refreshing player ~s", [Name]),
+    ok = lager:debug("Refreshing player ~s", [Name]),
     case qlg_pgsql_srv:should_player_be_refreshed(Id) of
         true ->
-            {ok, Matches} = ql_fetch:player_matches(Id),
-            [{ok, _} = qlg_pgsql_srv:store_match(M, null) || M <- Matches],
+            {ok, Matches} = ql_fetch:player_matches(Name),
+            _ = [{ok, _} = qlg_pgsql_srv:store_match(M, null) || M <- Matches],
             {ok, 1} = qlg_pgsql_srv:refresh_player(Id),
             ok;
         false ->

@@ -12,12 +12,18 @@
 %% API
 -export([start_link/0]).
 -export([store_match/2,
+         db_connect/0,
          select_player/1,
          players_to_refresh/0,
          matches_to_fetch/0,
+         fetch_player_name/1,
+         fetch_wins/1, fetch_wins/2,
+         fetch_losses/1, fetch_losses/2,
+         fetch_player_rating/1, fetch_player_rating/2,
          refresh_player/1,
          should_match_be_updated/1,
          should_player_be_refreshed/1,
+         players_in_tournament/0,
          mk_player/1]).
 
 %% gen_server callbacks
@@ -36,6 +42,11 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+
+db_connect() ->
+    {Host, Name, PW, DB} =
+        gproc:get_env(l, qlglicko, postgres, [app_env, error]),
+    pgsql:connect(Host, Name, PW, [{database, DB}]).
 
 call(Msg) ->
     gen_server:call(?MODULE, Msg, 60000).
@@ -58,8 +69,29 @@ should_player_be_refreshed(Id) ->
 matches_to_fetch() ->
     gen_server:call(?MODULE, matches_to_fetch).
 
-refresh_player(Name) ->
-    gen_server:call(?MODULE, {refresh_player, Name}).
+refresh_player(Id) ->
+    gen_server:call(?MODULE, {refresh_player, Id}).
+
+fetch_player_name(Id) ->
+    gen_server:call(?MODULE, {fetch_player_name, Id}).
+
+fetch_player_rating(C, P) ->
+    ex_fetch_player_rating(C, P).
+
+fetch_player_rating(P) ->
+    gen_server:call(?MODULE, {fetch_player_rating, P}).
+
+fetch_wins(C, P) ->
+    ex_fetch_wins(C, P).
+
+fetch_wins(P) ->
+    gen_server:call(?MODULE, {fetch_wins, P}).
+
+fetch_losses(C, P) ->
+    ex_fetch_losses(C, P).
+
+fetch_losses(P) ->
+    gen_server:call(?MODULE, {fetch_losses, P}).
 
 store_match(Id, Blob) when Blob == null;
                            is_binary(Blob) ->
@@ -67,17 +99,20 @@ store_match(Id, Blob) when Blob == null;
 store_match(Id, #duel_match{} = DM) ->
     gen_server:call(?MODULE, {store_duel_match, Id, DM}).
 
+players_in_tournament() ->
+    gen_server:call(?MODULE, players_in_tournament).
 
 %%%===================================================================
 
 %% @private
 init([]) ->
-    {Host, Name, PW, DB} =
-        gproc:get_env(l, qlglicko, postgres, [app_env, error]),
-    {ok, C} = pgsql:connect(Host, Name, PW, [{database, DB}]),
+    {ok, C} = db_connect(),
     {ok, #state{ conn = C}}.
 
 %% @private
+handle_call(players_in_tournament, _From, #state { conn = C } = State) ->
+    Reply = ex_players_in_tournament(C),
+    {reply, Reply, State};
 handle_call({should_player_be_refreshed, Id}, _From,
             #state { conn = C } = State) ->
     Reply = ex_should_player_be_refreshed(C, Id),
@@ -86,11 +121,24 @@ handle_call({should_match_be_updated, Id}, _From,
             #state { conn = C } = State) ->
     Reply = ex_should_match_be_updated(C, Id),
     {reply, Reply, State};
+handle_call({fetch_player_name, Id}, _From,
+            #state { conn = C } = State) ->
+    Reply = ex_fetch_player_name(C, Id),
+    {reply, Reply, State};
 handle_call(matches_to_fetch, _From, #state { conn = C } = State) ->
     Reply = ex_matches_to_fetch(C),
     {reply, Reply, State};
+handle_call({fetch_wins, P}, _From, #state {conn = C} = State) ->
+    Reply = ex_fetch_wins(C, P),
+    {reply, Reply, State};
+handle_call({fetch_losses, P}, _From, #state {conn = C} = State) ->
+    Reply = ex_fetch_losses(C, P),
+    {reply, Reply, State};
 handle_call(players_to_refresh, _From, #state { conn = C } = State) ->
     Reply = ex_players_to_refresh(C),
+    {reply, Reply, State};
+handle_call({fetch_player_rating, P}, _From, #state {conn = C} = State) ->
+    Reply = ex_fetch_player_rating(C, P),
     {reply, Reply, State};
 handle_call({select_player, Name}, _From, #state { conn = C } = State) ->
     Reply = ex_select_player(C, Name),
@@ -98,8 +146,8 @@ handle_call({select_player, Name}, _From, #state { conn = C } = State) ->
 handle_call({mk_player, Name}, _From, #state { conn = C } = State) ->
     Reply = ex_store_player(C, Name),
     {reply, Reply, State};
-handle_call({refresh_player, Name}, _From, #state { conn = C } = State) ->
-    Reply = ex_refresh_player(C, Name),
+handle_call({refresh_player, Id}, _From, #state { conn = C } = State) ->
+    Reply = ex_refresh_player(C, Id),
     {reply, Reply, State};
 handle_call({store_match, Id, Blob}, _From, #state { conn = C } = State) ->
     Reply = ex_store_match(C, Id, Blob),
@@ -129,20 +177,52 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
+ex_players_in_tournament(C) ->
+    pgsql:equery(
+      C,
+      "SELECT winner FROM duel_match UNION SELECT loser FROM duel_match").
+
+ex_fetch_player_rating(C, P) ->
+    pgsql:equery(
+      C,
+      "SELECT id, r, rd, sigma "
+      "FROM player_ratings "
+      "WHERE id = $1", [P]).
+
+ex_fetch_player_name(C, Id) ->
+    {ok, _, [{Pname}]} = pgsql:equery(C,
+                                      "SELECT name FROM player where id = $1",
+                                      [Id]),
+    binary_to_list(Pname).
+
+ex_fetch_wins(C, P) ->
+    {ok, _, Matches} = pgsql:equery(C,
+                                    "SELECT loser, lr, lrd "
+                                    "FROM duel_match_ratings "
+                                    "WHERE winner = $1", [P]),
+    [{Rj, RDj, 1} || {_, Rj, RDj} <- Matches].
+
+ex_fetch_losses(C, P) ->
+    {ok, _, Matches} = pgsql:equery(C,
+                                    "SELECT winner, wr, wrd "
+                                    "FROM duel_match_ratings "
+                                    "WHERE loser = $1", [P]),
+    [{Rj, RDj, 0} || {_, Rj, RDj} <- Matches].
+
 ex_matches_to_fetch(C) ->
-    pgsql:equery(C, "SELECT id FROM matches_to_refresh LIMIT 300").
+    pgsql:equery(C, "SELECT id FROM matches_to_refresh LIMIT 66").
 
 ex_players_to_refresh(C) ->
-    pgsql:equery(C, "SELECT id,name FROM players_to_update LIMIT 300").
+    pgsql:equery(C, "SELECT id,name FROM players_to_update LIMIT 66").
 
 ex_select_player(C, Name) ->
     pgsql:equery(C, "SELECT id,name FROM player WHERE name = $1",
                  [Name]).
 
-ex_refresh_player(C, Name) ->
+ex_refresh_player(C, Id) ->
     {ok, 1} = pgsql:equery(C,
                            "UPDATE player SET lastupdate = now()"
-                           "WHERE name = $1", [Name]).
+                           "WHERE id = $1", [Id]).
 
 ex_store_player(C, Name) ->
     {ok, 1} = pgsql:equery(C,

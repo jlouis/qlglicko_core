@@ -40,7 +40,12 @@ handle_cast(run, State) ->
     %% @todo Handle errors and overloads
     case jobs:ask(ql_fetch) of
         {ok, _Opaque} ->
-            fetch_and_store(State),
+            case crypto:rand_uniform(0, 4) of
+                0 ->
+                    fetch_and_store(State);
+                _ ->
+                    ok
+            end,
             {stop, normal, State}
     end;
 handle_cast(_Msg, State) ->
@@ -63,7 +68,7 @@ code_change(_OldVsn, State, _Extra) ->
 fetch_and_store(#state { id = Id }) ->
     lager:debug("Fetching match ~p", [Id]),
     {ok, JSON} = ql_fetch:match(Id),
-    persist_duel_match(Id, JSON),
+    %% persist_duel_match(Id, JSON),
     %% Do this last as a confirmation we got through the other parts
     %% This ensures an idempotent database.
     {ok, 1} = qlg_pgsql_srv:store_match(
@@ -76,17 +81,23 @@ persist_duel_match(Id, JSON) ->
           proplists:get_value(<<"RANKED">>, JSON)} of
         {<<"duel">>, <<"1">>} ->
             %% Duel game type. And ranked. Find the winner and the loser
-            [P1, P2] = proplists:get_value(<<"SCOREBOARD">>, JSON),
-            Played = proplists:get_value(<<"GAME_TIMESTAMP">>, JSON),
-            P1S = extract_scores(P1),
-            P2S = extract_scores(P2),
-            {ok, P1_Id} = add_new_player(P1S),
-            {ok, P2_Id} = add_new_player(P2S),
-            M = mk_match(decode_timestamp(Played),
-                         {P1_Id, P1S},
-                         {P2_Id, P2S}),
-            qlg_pgsql_srv:store_match(Id, M),
-            ok;
+            case proplists:get_value(<<"SCOREBOARD">>, JSON) of
+                [P1, P2] ->
+                    Played = proplists:get_value(<<"GAME_TIMESTAMP">>, JSON),
+                    P1S = extract_scores(P1),
+                    P2S = extract_scores(P2),
+                    {ok, P1_Id} = add_new_player(P1S),
+                    {ok, P2_Id} = add_new_player(P2S),
+                    M = mk_match(decode_timestamp(Played),
+                                 {P1_Id, P1S},
+                                 {P2_Id, P2S}),
+                    qlg_pgsql_srv:store_match(Id, M),
+                    ok;
+                _Otherwise ->
+                    error_logger:info_report([{unknown_match_structure,
+                                               JSON}]),
+                    ok
+            end;
         {<<"duel">>, <<"0">>} ->
             %% Unranked game, do not store it
             ok

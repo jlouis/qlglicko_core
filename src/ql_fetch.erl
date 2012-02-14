@@ -26,8 +26,12 @@ parse_matches(Body) ->
     {ok, REC} =
         re:compile("<div class=\"areaMapC\" " ++
                        "id=\"duel_([a-z0-9-]{36})_1\">"),
-    {match, Matches} = re:run(Body, REC, [global, {capture, all, binary}]),
-    [M || [_, M] <- Matches].
+    case re:run(Body, REC, [global, {capture, all, binary}]) of
+        {match, Ms} ->
+            [M || [_, M] <- Ms];
+        nomatch ->
+            []
+    end.
 
 match_url(Match) when is_binary(Match) ->
     string:join(
@@ -40,17 +44,31 @@ week_matches_url(Player, {{YYYY, MM, DD}, _}) ->
     string:join([Base, Player, lists:flatten(WeekStr)], "/").
 
 request(URL) ->
-    %% From = now(),
+    From = now(),
     case httpc:request(get, {URL, []}, [], [{body_format, binary}]) of
         {ok, {{_HTTPVer, 200, _RPhrase}, _Headers, Body}} ->
-            %% To = now(),
-            %% ql_response_time:report(From, To),
+            To = now(),
+            case overload(From, To) of
+                true ->
+                    ok = lager:info("Overload at QL Site"),
+                    jobs_sampler:tell_sampler(response_time, overload);
+                false ->
+                    ok
+            end,
             {ok, Body};
         {ok, Otherwise} ->
+            ok = lager:info("Timeouts, assuming overload"),
+            jobs_sampler:tell_sampler(response_time, overload),
             {error, {status_code, Otherwise}};
         {error, Reason} ->
             {error, Reason}
     end.
 
+overload(From, To) ->
+    calc_interval(From, To) > 4000.
 
-
+calc_interval({FMega, FSec, FMicro} = F, {TMega, TSec, TMicro} = T)
+  when F < T ->
+    FMs = (FMega * 1000000 + FSec) * 1000 + (FMicro / 1000),
+    TMs = (TMega * 1000000 + TSec) * 1000 + (TMicro / 1000),
+    TMs - FMs.

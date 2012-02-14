@@ -6,6 +6,7 @@
   {applications, [
                   kernel,
                   stdlib,
+                  crypto,
                   os_mon,
                   lager,
                   jobs,
