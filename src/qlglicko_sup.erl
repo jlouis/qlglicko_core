@@ -33,12 +33,16 @@ init([]) ->
     PgsqlSrv =
         {qlg_pgsql_srv, {qlg_pgsql_srv, start_link, []},
          permanent, 5000, worker, [qlg_pgsql_srv]},
+    MatchAnalyzer =
+        {qlg_match_analyzer, {qlg_match_analyzer, start_link, []},
+         permanent, 5000, worker, [qlg_match_analyzer]},
     Timer =
         {qlglicko_timer, {qlglicko_timer, start_link, []},
          permanent, 5000, worker, [qlglicko_timer]},
-    {ok, { {one_for_one, 5, 10}, [FetchPlayerPool,
-                                  FetchMatchPool,
-                                  PgsqlSrv,
-                                  Timer]} }.
+    {ok, { {one_for_one, 10, 3600}, [FetchPlayerPool,
+                                     FetchMatchPool,
+                                     PgsqlSrv,
+                                     MatchAnalyzer,
+                                     Timer]} }.
 
 

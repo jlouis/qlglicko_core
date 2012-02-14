@@ -16,10 +16,13 @@
          select_player/1,
          players_to_refresh/0,
          matches_to_fetch/0,
+         matches_to_analyze/0,
+         mark_analyzed/1,
          fetch_player_name/1,
          fetch_wins/1, fetch_wins/2,
          fetch_losses/1, fetch_losses/2,
          fetch_player_rating/1, fetch_player_rating/2,
+         fetch_match/1,
          refresh_player/1,
          should_match_be_updated/1,
          should_player_be_refreshed/1,
@@ -51,11 +54,20 @@ db_connect() ->
 call(Msg) ->
     gen_server:call(?MODULE, Msg, 60000).
 
+fetch_match(Id) ->
+    gen_server:call(?MODULE, {fetch_match, Id}).
+
 mk_player(Name) ->
     gen_server:call(?MODULE, {mk_player, Name}).
 
 select_player(Name) ->
     gen_server:call(?MODULE, {select_player, Name}).
+
+matches_to_analyze() ->
+    gen_server:call(?MODULE, matches_to_analyze).
+
+mark_analyzed(Id) ->
+    gen_server:call(?MODULE, {mark_analyzed, Id}).
 
 players_to_refresh() ->
     gen_server:call(?MODULE, players_to_refresh).
@@ -121,6 +133,10 @@ handle_call({should_match_be_updated, Id}, _From,
             #state { conn = C } = State) ->
     Reply = ex_should_match_be_updated(C, Id),
     {reply, Reply, State};
+handle_call({fetch_match, Id}, _From,
+            #state { conn = C } = State) ->
+    Reply = ex_fetch_match(C, Id),
+    {reply, Reply, State};
 handle_call({fetch_player_name, Id}, _From,
             #state { conn = C } = State) ->
     Reply = ex_fetch_player_name(C, Id),
@@ -134,6 +150,9 @@ handle_call({fetch_wins, P}, _From, #state {conn = C} = State) ->
 handle_call({fetch_losses, P}, _From, #state {conn = C} = State) ->
     Reply = ex_fetch_losses(C, P),
     {reply, Reply, State};
+handle_call(matches_to_analyze, _From, #state { conn = C } = State) ->
+    Reply = ex_matches_to_analyze(C),
+    {reply, Reply, State};
 handle_call(players_to_refresh, _From, #state { conn = C } = State) ->
     Reply = ex_players_to_refresh(C),
     {reply, Reply, State};
@@ -142,6 +161,9 @@ handle_call({fetch_player_rating, P}, _From, #state {conn = C} = State) ->
     {reply, Reply, State};
 handle_call({select_player, Name}, _From, #state { conn = C } = State) ->
     Reply = ex_select_player(C, Name),
+    {reply, Reply, State};
+handle_call({mark_analyzed, Id}, _From, #state { conn = C } = State) ->
+    Reply = ex_mark_analyzed(C, Id),
     {reply, Reply, State};
 handle_call({mk_player, Name}, _From, #state { conn = C } = State) ->
     Reply = ex_store_player(C, Name),
@@ -189,6 +211,18 @@ ex_fetch_player_rating(C, P) ->
       "FROM player_ratings "
       "WHERE id = $1", [P]).
 
+ex_fetch_match(C, Id) ->
+    {ok, _, [{Content}]} = pgsql:equery(
+                             C,
+                             "SELECT content FROM raw_match WHERE id = $1",
+                             [Id]),
+    {ok, Content}.
+
+ex_matches_to_analyze(C) ->
+    pgsql:equery(
+      C,
+      "SELECT id FROM matches_to_analyze LIMIT 3000").
+
 ex_fetch_player_name(C, Id) ->
     {ok, _, [{Pname}]} = pgsql:equery(C,
                                       "SELECT name FROM player where id = $1",
@@ -218,6 +252,11 @@ ex_players_to_refresh(C) ->
 ex_select_player(C, Name) ->
     pgsql:equery(C, "SELECT id,name FROM player WHERE name = $1",
                  [Name]).
+
+ex_mark_analyzed(C, Id) ->
+    {ok, 1} = pgsql:equery(
+                C,
+                "UPDATE raw_match SET analyzed = true WHERE id = $1", [Id]).
 
 ex_refresh_player(C, Id) ->
     {ok, 1} = pgsql:equery(C,

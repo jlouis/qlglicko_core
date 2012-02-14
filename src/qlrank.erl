@@ -2,22 +2,6 @@
 
 -export([run/0]).
 
-start_context() ->
-    case application:start(jobs) of
-        ok ->
-            ok;
-        {error, {already_started, jobs}} ->
-            ok
-    end.
-
-add_jobs_queues() ->
-    jobs:add_queue(qlrank,
-                   [{regulators, [{counter,
-                                   [{limit, 8},
-                                    {modifiers,
-                                     {cpu, 10},
-                                     {memory, 10}}]}]}]).
-
 players(Matches) ->
     lists:usort(
       lists:concat([[P1, P2] || {P1, P2, _} <- Matches])).
@@ -31,8 +15,6 @@ fetch_ratings() ->
     NewRatings.
 
 run() ->
-    start_context(),
-    add_jobs_queues(),
     init_rate_result_table(),
     Tournaments = [fun iem5:matches/0,
                    fun dhs2011:matches/0,
