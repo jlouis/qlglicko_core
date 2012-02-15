@@ -39,7 +39,12 @@ handle_cast(run, State) ->
     %% @todo handle errors and overloads
     case jobs:ask(ql_fetch) of
         {ok, _Opaque} ->
-            fetch_and_store(State),
+            case crypto:rand_uniform(0, 5) of
+                0 ->
+                    fetch_and_store(State);
+                _ ->
+                    ok
+            end,
             {stop, normal, State}
     end;
 handle_cast(_Msg, State) ->
