@@ -34,7 +34,7 @@ fetch_player(Id, Name) ->
 %% @private
 init([]) ->
     RestartStrategy = simple_one_for_one,
-    MaxRestarts = 10,
+    MaxRestarts = 5,
     MaxSecondsBetweenRestarts = 3600,
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
