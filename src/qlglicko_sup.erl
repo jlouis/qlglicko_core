@@ -39,10 +39,10 @@ init([]) ->
     Timer =
         {qlglicko_timer, {qlglicko_timer, start_link, []},
          permanent, 5000, worker, [qlglicko_timer]},
-    {ok, { {one_for_one, 10, 3600}, [FetchPlayerPool,
-                                     FetchMatchPool,
-                                     PgsqlSrv,
-                                     MatchAnalyzer,
-                                     Timer]} }.
+    {ok, { {one_for_one, 5, 3600}, [FetchPlayerPool,
+                                    FetchMatchPool,
+                                    PgsqlSrv,
+                                    MatchAnalyzer,
+                                    Timer]} }.
 
 

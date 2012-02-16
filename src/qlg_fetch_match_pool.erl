@@ -26,7 +26,7 @@ fetch_match(Id) ->
             qlg_fetch_match:run(Pid),
             {ok, Pid};
         P when is_pid(P) ->
-            {error, {already_started, Id}}
+            {error, {already_started, Id, P}}
     end.
 
 %%%===================================================================
@@ -34,7 +34,7 @@ fetch_match(Id) ->
 %% @private
 init([]) ->
     RestartStrategy = simple_one_for_one,
-    MaxRestarts = 100,
+    MaxRestarts = 10,
     MaxSecondsBetweenRestarts = 3600,
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
