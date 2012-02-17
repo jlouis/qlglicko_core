@@ -24,6 +24,9 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
+    OverloadDetect =
+        {qlg_overload, {qlg_overload, start_link, []},
+         permanent, 5000, worker, [qlg_overload]},
     FetchPlayerPool =
         {qlg_fetch_player_pool, {qlg_fetch_player_pool, start_link, []},
          transient, infinity, supervisor, [qlg_fetch_player_pool]},
@@ -39,7 +42,8 @@ init([]) ->
     Timer =
         {qlglicko_timer, {qlglicko_timer, start_link, []},
          permanent, 5000, worker, [qlglicko_timer]},
-    {ok, { {one_for_one, 3, 3600}, [FetchPlayerPool,
+    {ok, { {one_for_one, 3, 3600}, [OverloadDetect,
+                                    FetchPlayerPool,
                                     FetchMatchPool,
                                     PgsqlSrv,
                                     MatchAnalyzer,
