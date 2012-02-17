@@ -69,8 +69,16 @@ code_change(_OldVsn, State, _Extra) ->
 analyze_duel_match(Id) ->
     {ok, Bin} = qlg_pgsql_srv:fetch_match(Id),
     JSON = binary_to_term(Bin),
-    persist_duel_match(Id, JSON),
+    persist_match(Id, JSON),
     qlg_pgsql_srv:mark_analyzed(Id).
+
+persist_match(Id, JSON) ->
+    case proplists:get_value(<<"UNAVAILABLE">>, JSON) of
+        1 ->
+            ok;
+        undefined ->
+            persist_duel_match(Id, JSON)
+    end.
 
 persist_duel_match(Id, JSON) ->
     case {proplists:get_value(<<"GAME_TYPE">>, JSON),
@@ -84,10 +92,15 @@ persist_duel_match(Id, JSON) ->
                     P2S = extract_scores(P2),
                     {ok, P1_Id} = add_new_player(P1S),
                     {ok, P2_Id} = add_new_player(P2S),
-                    M = mk_match(decode_timestamp(Played),
+                    case mk_match(decode_timestamp(Played),
                                  {P1_Id, P1S},
-                                 {P2_Id, P2S}),
-                    qlg_pgsql_srv:store_match(Id, M),
+                                  {P2_Id, P2S}) of
+                        {ok, M} ->
+                            qlg_pgsql_srv:store_match(Id, M);
+                        {error, Reason} ->
+                            lager:info("Not analyzing match ~p: ~p",
+                                       [Id, Reason])
+                    end,
                     ok;
                 _Otherwise ->
                     error_logger:info_report([{unknown_match_structure,
@@ -139,22 +152,26 @@ decode_rank(<<"-1">>) -> 999.
 
 mk_match(Played, {Id1, {_P1, R1, S1}},
                  {Id2, {_P2, R2, S2}}) when R1 < R2 ->
-    #duel_match { played = Played,
-                  winner = Id1, winner_score = S1,
-                  loser  = Id2, loser_score = S2 };
+    {ok, #duel_match { played = Played,
+                       winner = Id1, winner_score = S1,
+                       loser  = Id2, loser_score = S2 }};
 mk_match(Played, {Id1, {_P1, R1, S1}},
                  {Id2, {_P2, R2, S2}}) when R2 < R1 ->
-    #duel_match { played = Played,
-                  winner = Id2, winner_score = S2,
-                  loser = Id1, loser_score = S1 };
+    {ok, #duel_match { played = Played,
+                       winner = Id2, winner_score = S2,
+                       loser = Id1, loser_score = S1 }};
 mk_match(Played, {Id1, {_P1, 999, S1}},
                  {Id2, {_P2, 999, S2}}) when S1 > S2 ->
-    #duel_match { played = Played,
-                  winner = Id1, winner_score = S1,
-                  loser  = Id2, loser_score = S2 };
+    {ok, #duel_match { played = Played,
+                       winner = Id1, winner_score = S1,
+                       loser  = Id2, loser_score = S2 }};
 mk_match(Played, {Id1, {_P1, 999, S1}},
                  {Id2, {_P2, 999, S2}}) when S1 < S2 ->
-    #duel_match { played = Played,
-                  winner = Id2, winner_score = S2,
-                  loser  = Id1, loser_score = S1 }.
-
+    {ok, #duel_match { played = Played,
+                       winner = Id2, winner_score = S2,
+                       loser  = Id1, loser_score = S1 }};
+mk_match(Played, {Id1, {_P1, 999, S}},
+                 {Id2, {_P2, 999, S}}) ->
+    {ok, #duel_match { played = Played,
+                       winner = Id1, winner_score = S,
+                       loser  = Id2, loser_score  = S}}.
