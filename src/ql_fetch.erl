@@ -51,16 +51,24 @@ request(URL) ->
             case overload(From, To) of
                 true ->
                     ok = lager:info("Overload at QL Site"),
+                    qlg_overload:overload(),
                     jobs_sampler:tell_sampler(response_time, overload);
                 false ->
                     ok
             end,
             {ok, Body};
+        {ok, {{_HttpVer, 502, _RPhrase}, _Headers, _Body} = SC} ->
+            lager:info("Got 502 Bad Gateway"),
+            qlg_overload:timeout(),
+            {error, {status_code, SC}};
         {ok, Otherwise} ->
             ok = lager:info("Timeouts, assuming overload"),
+            qlg_overload:overload(),
             jobs_sampler:tell_sampler(response_time, overload),
             {error, {status_code, Otherwise}};
         {error, Reason} ->
+            lager:info("HTTP request error: ~p", [Reason]),
+            qlg_overload:timeout(),
             {error, Reason}
     end.
 

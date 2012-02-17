@@ -23,14 +23,12 @@ overload(Name) ->
     jobs_sampler:tell_sampler(Name, overload).
 
 handle_msg(overload, _T, #state { count = K } = S) ->
-    ok = lager:debug("Logging overload"),
     {ignore, S#state { count = K+1}};
 handle_msg(Msg, _T, S) ->
     ok = lager:debug("Ignoring message ~p", [Msg]),
     {ignore, S}.
 
 sample(_T, #state { count = K} = S) ->
-    ok = lager:debug("Sampling, count ~B", [K]),
     {K, S#state { count = case K of 0 -> 0;
                                N  when N > 0 -> N-1 end}}.
 
