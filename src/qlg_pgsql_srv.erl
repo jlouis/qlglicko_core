@@ -266,7 +266,7 @@ ex_refresh_player(C, Id) ->
 ex_store_player(C, Name) ->
     {ok, 1} = pgsql:equery(C,
                            "INSERT INTO player (name, lastupdate)"
-                           "VALUES ($1, '1970-01-01')",
+                           "VALUES ($1, now() - '5 days' :: interval)",
                            [Name]),
     ok.
 
