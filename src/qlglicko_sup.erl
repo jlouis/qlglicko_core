@@ -24,6 +24,8 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
+    {ok, _DispatchInfo}
+        = dispcount:dispatcher_info(qlg_db_dispatcher),
     OverloadDetect =
         {qlg_overload, {qlg_overload, start_link, []},
          permanent, 5000, worker, [qlg_overload]},

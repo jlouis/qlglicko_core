@@ -1,13 +1,13 @@
 -module(qlg_rank).
 
--export([rank/1, rank_chunk/2]).
+-export([rank/2, rank_chunk/3]).
 
 -define(CHUNK_SIZE, 1000).
 
-rank(Tournament) ->
+rank(Tournament, Info) ->
     ets:new(qlg_rank, [named_table, public]),
     Players = fetch_players(Tournament),
-    _ = rank_parallel([P || {P} <- Players], [], Tournament),
+    _ = rank_parallel([P || {P} <- Players], [], Tournament, Info),
     ok = write_csv(),
     ets:delete(qlg_rank),
     ok.
@@ -25,9 +25,9 @@ format_player({P, R, Rd, S}) ->
      float_to_list(Rd), $,,
      float_to_list(S)].
 
-rank_parallel([], Workers, _Tournament) ->
+rank_parallel([], Workers, _Tournament, _Info) ->
     rank_collect(Workers);
-rank_parallel(Players, Workers, Tournament) when is_list(Players) ->
+rank_parallel(Players, Workers, Tournament, Info) when is_list(Players) ->
     {Chunk, Rest} =
         try
             lists:split(?CHUNK_SIZE, Players)
@@ -37,14 +37,19 @@ rank_parallel(Players, Workers, Tournament) when is_list(Players) ->
         end,
     rank_parallel(Rest,
                   [rpc:async_call(node(),
-                                  ?MODULE, rank_chunk, [Chunk, Tournament])
-                   | Workers], Tournament).
+                                  ?MODULE,
+                                  rank_chunk,
+                                  [Chunk, Tournament, Info])
+                   | Workers], Tournament, Info).
 
-rank_chunk(Players, Tournament) ->
+rank_chunk(Players, Tournament, Info) ->
     jobs:run(qlrank,
              fun() ->
-                     {ok, C} = qlg_pgsql_srv:db_connect(),
-                     _ = [rank(P, C, Tournament) || P <- Players],
+                     case dispcount:checkout(Info) of
+                         {ok, CheckinReference, C} ->
+                             _ = [rank(P, C, Tournament) || P <- Players],
+                             dispcount:checkin(Info, CheckinReference, C)
+                     end,
                      ok
              end).
 
