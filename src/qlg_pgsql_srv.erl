@@ -16,6 +16,7 @@
          select_player/1,
          players_to_refresh/0,
          matches_to_fetch/0,
+         tournament_mark_ranked/1,
          matches_to_analyze/0,
          mark_analyzed/1,
          fetch_player_name/1,
@@ -23,6 +24,7 @@
          fetch_losses/2, fetch_losses/3,
          fetch_player_rating/1, fetch_player_rating/2,
          fetch_match/1,
+         store_player_ranking/2,
          refresh_player/1,
          should_match_be_updated/1,
          should_player_be_refreshed/1,
@@ -78,6 +80,9 @@ should_match_be_updated(Id) ->
 should_player_be_refreshed(Id) ->
     call({should_player_be_refreshed, Id}).
 
+store_player_ranking(T, PI) ->
+    call({store_player_ranking, T, PI}).
+
 matches_to_fetch() ->
     gen_server:call(?MODULE, matches_to_fetch).
 
@@ -101,6 +106,9 @@ fetch_wins(P, T) ->
 
 fetch_losses(C, P, T) ->
     ex_fetch_losses(C, P, T).
+
+tournament_mark_ranked(T) ->
+    call({tournament_mark_ranked, T}).
 
 fetch_losses(P, T) ->
     gen_server:call(?MODULE, {fetch_losses, P, T}).
@@ -151,6 +159,10 @@ handle_call({fetch_wins, P, T}, _From, #state {conn = C} = State) ->
 handle_call({fetch_losses, P, T}, _From, #state {conn = C} = State) ->
     Reply = ex_fetch_losses(C, P, T),
     {reply, Reply, State};
+handle_call({store_player_ranking, T, PI},
+            _From, #state { conn = C } = State) ->
+    Reply = ex_store_player_ranking(C, T, PI),
+    {reply, Reply, State};
 handle_call(matches_to_analyze, _From, #state { conn = C } = State) ->
     Reply = ex_matches_to_analyze(C),
     {reply, Reply, State};
@@ -171,6 +183,10 @@ handle_call({mk_player, Name}, _From, #state { conn = C } = State) ->
     {reply, Reply, State};
 handle_call({refresh_player, Id}, _From, #state { conn = C } = State) ->
     Reply = ex_refresh_player(C, Id),
+    {reply, Reply, State};
+handle_call({tournament_mark_ranked, Id},
+            _From, #state { conn = C } = State) ->
+    Reply = ex_mark_tournament_ranked(C, Id),
     {reply, Reply, State};
 handle_call({store_match, Id, Blob}, _From, #state { conn = C } = State) ->
     Reply = ex_store_match(C, Id, Blob),
@@ -250,6 +266,15 @@ ex_fetch_losses(C, P, T) ->
                                     "AND played BETWEEN "
                                     " t.t_from AND t.t_to", [P, T]),
     [{Rj, RDj, 0} || {_, Rj, RDj} <- Matches].
+
+ex_mark_tournament_ranked(C, T) ->
+    pgsql:equery(C,
+                 "UPDATE tournament SET done = true WHERE id = $1", [T]).
+
+ex_store_player_ranking(C, T, {Id, R, RD, Sigma}) ->
+    pgsql:equery(C,
+                 "INSERT INTO tournament_result (id, player_id, r, rd, sigma)"
+                 "VALUES ($1, $2, $3, $4, $5)", [T, Id, R, RD, Sigma]).
 
 ex_matches_to_fetch(C) ->
     pgsql:equery(C, "SELECT id FROM matches_to_refresh LIMIT 66").

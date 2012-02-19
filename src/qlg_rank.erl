@@ -4,13 +4,39 @@
 
 -define(CHUNK_SIZE, 1000).
 
-rank(Tournament, Info) ->
+rank(T, I) ->
+    rank(T, I, []).
+
+rank(Tournament, Info, Options) ->
     ets:new(qlg_rank, [named_table, public]),
     Players = fetch_players(Tournament),
     _ = rank_parallel([P || {P} <- Players], [], Tournament, Info),
-    ok = write_csv(),
+    case proplists:get_value(write_csv, Options) of
+        undefined ->
+            ok;
+        true ->
+            ok = write_csv()
+    end,
+    case proplists:get_value(save_tournament, Options) of
+        undefined ->
+            ok;
+        true ->
+            store_tournament_ranking(Tournament)
+    end,
     ets:delete(qlg_rank),
     ok.
+
+store_tournament_ranking(T) ->
+    store_tournament_ranking(T, ets:match_object(qlg_rank, '$1', ?CHUNK_SIZE)).
+
+store_tournament_ranking(T, '$end_of_table') ->
+    qlg_pgsql_srv:tournament_mark_ranked(T);
+store_tournament_ranking(T, {Matches, Continuation}) ->
+    [store_player_ranking(T, P) || P <- Matches],
+    store_tournament_ranking(T, ets:match_object(Continuation)).
+
+store_player_ranking(T, {Id, R, RD, Sigma}) ->
+    {ok, 1} = qlg_pgsql_srv:store_player_ranking(T, {Id, R, RD, Sigma}).
 
 write_csv() ->
     Ratings = ets:match_object(qlg_rank, '$1'),
@@ -47,7 +73,7 @@ rank_chunk(Players, Tournament, Info) ->
              fun() ->
                      case dispcount:checkout(Info) of
                          {ok, CheckinReference, C} ->
-                             _ = [rank(P, C, Tournament) || P <- Players],
+                             _ = [rank_player(P, C, Tournament) || P <- Players],
                              dispcount:checkin(Info, CheckinReference, C)
                      end,
                      ok
@@ -61,7 +87,7 @@ fetch_players(Tournament) ->
     {ok, _, Players} = qlg_pgsql_srv:players_in_tournament(Tournament),
     Players.
 
-rank(P, C, T) ->
+rank_player(P, C, T) ->
     {P, R, RD1, Sigma} = rank1(P, C, T),
     store_player_rating(P, R, RD1, Sigma, T),
     ok.
