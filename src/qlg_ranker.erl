@@ -12,7 +12,7 @@
 
 %% API
 -export([start_link/1,
-         rank/1]).
+         rank/1, rank/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -32,7 +32,10 @@ start_link(Info) ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [Info], []).
 
 rank(Id) ->
-    gen_server:call(?SERVER, {rank, Id}, 120*1000).
+    rank(Id, []).
+
+rank(Id, Opts) ->
+    gen_server:call(?SERVER, {rank, Id, Opts}, 120*1000).
 
 %%%===================================================================
 
@@ -41,8 +44,8 @@ init([Info]) ->
     {ok, #state{ dispatch_info = Info}}.
 
 %% @private
-handle_call({rank, Id}, _From, #state { dispatch_info = Info} = State) ->
-    Reply = qlg_rank:rank(Id, Info),
+handle_call({rank, Id, Opts}, _From, #state { dispatch_info = Info} = State) ->
+    Reply = qlg_rank:rank(Id, Info, Opts),
     {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
