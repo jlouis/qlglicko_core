@@ -1,6 +1,7 @@
 -module(qlg_rank).
 
--export([rank/2, rank_chunk/3]).
+-export([rank/2, rank/3,
+         rank_chunk/3]).
 
 -define(CHUNK_SIZE, 1000).
 
@@ -73,7 +74,8 @@ rank_chunk(Players, Tournament, Info) ->
              fun() ->
                      case dispcount:checkout(Info) of
                          {ok, CheckinReference, C} ->
-                             _ = [rank_player(P, C, Tournament) || P <- Players],
+                             _ = [rank_player(P, C, Tournament)
+                                  || P <- Players],
                              dispcount:checkin(Info, CheckinReference, C)
                      end,
                      ok
