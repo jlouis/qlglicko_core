@@ -26,7 +26,7 @@ checkin(_Socket, State) ->
 
 dead(#state { resource = C } = State) ->
     %% aw shoot, someone lost our resource, we gotta create a new one:
-    ok = pgsql:disconnect(C),
+    ok = pgsql:close(C),
     {ok, NewC} = qlg_pgsql_srv:db_connect(),
     {ok, State#state{ resource = NewC, given = false}}.
 
