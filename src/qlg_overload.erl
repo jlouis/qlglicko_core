@@ -134,7 +134,7 @@ reset(#state { } = State) ->
     State#state { fuse = 0, overload_count = 0 }.
 
 draw() ->
-    case crypto:rand_uniform(0, 5) of
+    case crypto:rand_uniform(0, 4) of
         0 ->
             yes;
         _ ->
