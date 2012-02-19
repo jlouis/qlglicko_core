@@ -19,14 +19,14 @@
          matches_to_analyze/0,
          mark_analyzed/1,
          fetch_player_name/1,
-         fetch_wins/1, fetch_wins/2,
-         fetch_losses/1, fetch_losses/2,
+         fetch_wins/2, fetch_wins/3,
+         fetch_losses/2, fetch_losses/3,
          fetch_player_rating/1, fetch_player_rating/2,
          fetch_match/1,
          refresh_player/1,
          should_match_be_updated/1,
          should_player_be_refreshed/1,
-         players_in_tournament/0,
+         players_in_tournament/1,
          mk_player/1]).
 
 %% gen_server callbacks
@@ -93,17 +93,17 @@ fetch_player_rating(C, P) ->
 fetch_player_rating(P) ->
     gen_server:call(?MODULE, {fetch_player_rating, P}).
 
-fetch_wins(C, P) ->
-    ex_fetch_wins(C, P).
+fetch_wins(C, P, T) ->
+    ex_fetch_wins(C, P, T).
 
-fetch_wins(P) ->
-    gen_server:call(?MODULE, {fetch_wins, P}).
+fetch_wins(P, T) ->
+    gen_server:call(?MODULE, {fetch_wins, P, T}).
 
-fetch_losses(C, P) ->
-    ex_fetch_losses(C, P).
+fetch_losses(C, P, T) ->
+    ex_fetch_losses(C, P, T).
 
-fetch_losses(P) ->
-    gen_server:call(?MODULE, {fetch_losses, P}).
+fetch_losses(P, T) ->
+    gen_server:call(?MODULE, {fetch_losses, P, T}).
 
 store_match(Id, Blob) when Blob == null;
                            is_binary(Blob) ->
@@ -111,8 +111,8 @@ store_match(Id, Blob) when Blob == null;
 store_match(Id, #duel_match{} = DM) ->
     gen_server:call(?MODULE, {store_duel_match, Id, DM}).
 
-players_in_tournament() ->
-    gen_server:call(?MODULE, players_in_tournament).
+players_in_tournament(T) ->
+    gen_server:call(?MODULE, {players_in_tournament, T}).
 
 %%%===================================================================
 
@@ -122,8 +122,9 @@ init([]) ->
     {ok, #state{ conn = C}}.
 
 %% @private
-handle_call(players_in_tournament, _From, #state { conn = C } = State) ->
-    Reply = ex_players_in_tournament(C),
+handle_call({players_in_tournament, T}, _From,
+            #state { conn = C } = State) ->
+    Reply = ex_players_in_tournament(C, T),
     {reply, Reply, State};
 handle_call({should_player_be_refreshed, Id}, _From,
             #state { conn = C } = State) ->
@@ -144,11 +145,11 @@ handle_call({fetch_player_name, Id}, _From,
 handle_call(matches_to_fetch, _From, #state { conn = C } = State) ->
     Reply = ex_matches_to_fetch(C),
     {reply, Reply, State};
-handle_call({fetch_wins, P}, _From, #state {conn = C} = State) ->
-    Reply = ex_fetch_wins(C, P),
+handle_call({fetch_wins, P, T}, _From, #state {conn = C} = State) ->
+    Reply = ex_fetch_wins(C, P, T),
     {reply, Reply, State};
-handle_call({fetch_losses, P}, _From, #state {conn = C} = State) ->
-    Reply = ex_fetch_losses(C, P),
+handle_call({fetch_losses, P, T}, _From, #state {conn = C} = State) ->
+    Reply = ex_fetch_losses(C, P, T),
     {reply, Reply, State};
 handle_call(matches_to_analyze, _From, #state { conn = C } = State) ->
     Reply = ex_matches_to_analyze(C),
@@ -199,10 +200,11 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
-ex_players_in_tournament(C) ->
+ex_players_in_tournament(C, T) ->
     pgsql:equery(
       C,
-      "SELECT winner FROM duel_match UNION SELECT loser FROM duel_match").
+      "SELECT player FROM tournament_players WHERE tournament = $1",
+      [T]).
 
 ex_fetch_player_rating(C, P) ->
     pgsql:equery(
@@ -229,18 +231,24 @@ ex_fetch_player_name(C, Id) ->
                                       [Id]),
     binary_to_list(Pname).
 
-ex_fetch_wins(C, P) ->
+ex_fetch_wins(C, P, T) ->
     {ok, _, Matches} = pgsql:equery(C,
                                     "SELECT loser, lr, lrd "
-                                    "FROM duel_match_ratings "
-                                    "WHERE winner = $1", [P]),
+                                    "FROM duel_match_ratings, tournament t "
+                                    "WHERE winner = $1 "
+                                    "AND t.id = $2 "
+                                    "AND played BETWEEN "
+                                    " t.t_from AND t.t_to", [P, T]),
     [{Rj, RDj, 1} || {_, Rj, RDj} <- Matches].
 
-ex_fetch_losses(C, P) ->
+ex_fetch_losses(C, P, T) ->
     {ok, _, Matches} = pgsql:equery(C,
                                     "SELECT winner, wr, wrd "
-                                    "FROM duel_match_ratings "
-                                    "WHERE loser = $1", [P]),
+                                    "FROM duel_match_ratings, tournament t "
+                                    "WHERE loser = $1 "
+                                    "AND t.id = $2 "
+                                    "AND played BETWEEN "
+                                    " t.t_from AND t.t_to", [P, T]),
     [{Rj, RDj, 0} || {_, Rj, RDj} <- Matches].
 
 ex_matches_to_fetch(C) ->
