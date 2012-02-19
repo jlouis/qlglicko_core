@@ -44,7 +44,7 @@ init([]) ->
     Timer =
         {qlglicko_timer, {qlglicko_timer, start_link, []},
          permanent, 5000, worker, [qlglicko_timer]},
-    {ok, { {one_for_one, 3, 3600}, [OverloadDetect,
+    {ok, { {one_for_all, 3, 3600}, [OverloadDetect,
                                     FetchPlayerPool,
                                     FetchMatchPool,
                                     PgsqlSrv,

@@ -57,8 +57,8 @@ rank_collect(Workers) ->
     [rpc:yield(K) || K <- Workers].
 
 
-fetch_players(_Tournament) ->
-    {ok, _, Players} = qlg_pgsql_srv:players_in_tournament(),
+fetch_players(Tournament) ->
+    {ok, _, Players} = qlg_pgsql_srv:players_in_tournament(Tournament),
     Players.
 
 rank(P, C, T) ->
@@ -66,7 +66,7 @@ rank(P, C, T) ->
     store_player_rating(P, R, RD1, Sigma, T),
     ok.
 
-rank1(Player, C, _) ->
+rank1(Player, C, T) ->
     {Player, R, RD, Sigma} =
         case qlg_pgsql_srv:fetch_player_rating(C, Player) of
             {ok, _, []} ->
@@ -74,8 +74,8 @@ rank1(Player, C, _) ->
             {ok, _, [Rating]} ->
                 Rating
         end,
-    Wins = qlg_pgsql_srv:fetch_wins(C, Player),
-    Losses = qlg_pgsql_srv:fetch_losses(C, Player),
+    Wins = qlg_pgsql_srv:fetch_wins(C, Player, T),
+    Losses = qlg_pgsql_srv:fetch_losses(C, Player, T),
     case Wins ++ Losses of
         [] ->
             RD1 = glicko2:phi_star(RD, Sigma),
