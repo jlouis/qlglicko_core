@@ -9,6 +9,7 @@
                   crypto,
                   os_mon,
                   lager,
+                  dispcount,
                   jobs,
                   inets,
                   gproc,
