@@ -160,6 +160,11 @@ mk_match(Played, {Id1, {_P1, R1, S1}},
     {ok, #duel_match { played = Played,
                        winner = Id2, winner_score = S2,
                        loser = Id1, loser_score = S1 }};
+mk_match(Played, {Id1, {_P1, X, Y}},
+                 {Id2, {_P2, X, Y}}) ->
+    {ok, #duel_match { played = Played,
+                       winner = Id1, winner_score = Y,
+                       loser  = Id2, loser_score  = Y}};
 mk_match(Played, {Id1, {_P1, 999, S1}},
                  {Id2, {_P2, 999, S2}}) when S1 > S2 ->
     {ok, #duel_match { played = Played,
