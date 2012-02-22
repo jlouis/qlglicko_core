@@ -1,7 +1,6 @@
 -module(qlg_rank).
 
--export([rank/2, rank/3,
-         rank_chunk/3]).
+-export([rank/2, rank/3]).
 
 -define(CHUNK_SIZE, 1000).
 
@@ -67,71 +66,18 @@ rank_parallel(Players, Workers, Tournament, Info) when is_list(Players) ->
                 {Players, []}
         end,
     lager:debug("Spawning a parallel ranking job"),
+    {ok, Pid} = qlg_ranker_pool:spawn_worker(Tournament, Chunk),
     rank_parallel(Rest,
-                  [rpc:async_call(node(),
-                                  ?MODULE,
-                                  rank_chunk,
-                                  [Chunk, Tournament, Info])
-                   | Workers], Tournament, Info).
+                  [Pid | Workers], Tournament, Info).
 
-rank_chunk(Players, Tournament, Info) ->
-    lager:debug("Requesting jobs to run a ranking job for us"),
-    jobs:run(qlrank,
-             fun() ->
-                     lager:debug("Running ranking job"),
-                     case dispcount:checkout(Info) of
-                         {ok, CheckinReference, C} ->
-                             lager:debug(
-                               "Get dispcount job, ranking ~B players",
-                               [length(Players)]),
-                             _ = [rank_player(P, C, Tournament)
-                                  || P <- Players],
-                             lager:debug("Checkin to dispcount again"),
-                             dispcount:checkin(Info, CheckinReference, C)
-                     end,
-                     ok
-             end).
 
 rank_collect(Workers) ->
     lager:debug("Collecting workers to make sure all ranking is done"),
-    [rpc:yield(K) || K <- Workers].
-
+    [qlg_rank_worker:done(Pid) || Pid <- Workers].
 
 fetch_players(Tournament) ->
     {ok, _, Players} = qlg_pgsql_srv:players_in_tournament(Tournament),
     Players.
 
-rank_player(P, C, T) ->
-    lager:debug("Ranking player ~p", [P]),
-    {P, R, RD1, Sigma} = rank1(P, C, T),
-    lager:debug("Ranked player ~p (~p, ~p, ~p)", [P, R, RD1, Sigma]),
-    store_player_rating(P, R, RD1, Sigma, T),
-    ok.
-
-rank1(Player, C, T) ->
-    lager:debug("Fetching player rating"),
-    {Player, R, RD, Sigma} =
-        case qlg_pgsql_srv:fetch_player_rating(C, Player) of
-            {ok, _, []} ->
-                {Player, 1500.0, 350.0, 0.06};
-            {ok, _, [Rating]} ->
-                Rating
-        end,
-    lager:debug("Fetching player wins"),
-    Wins = qlg_pgsql_srv:fetch_wins(C, Player, T),
-    lager:debug("Fetching player losses"),
-    Losses = qlg_pgsql_srv:fetch_losses(C, Player, T),
-    case Wins ++ Losses of
-        [] ->
-            RD1 = glicko2:phi_star(RD, Sigma),
-            {Player, R, RD1, Sigma};
-        Opponents ->
-            {R1, RD1, Sigma1} =
-                glicko2:rate(R, RD, Sigma, Opponents),
-            {Player, R1, RD1, Sigma1}
-    end.
-
-store_player_rating(P, R, RD, Sigma, _T) ->
-    ets:insert(qlg_rank, {P, R, RD, Sigma}).
 
 

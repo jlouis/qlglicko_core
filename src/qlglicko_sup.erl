@@ -41,6 +41,9 @@ init([]) ->
     MatchAnalyzer =
         {qlg_match_analyzer, {qlg_match_analyzer, start_link, []},
          permanent, 5000, worker, [qlg_match_analyzer]},
+    RankerPool =
+        {qlg_ranker_pool, {qlg_ranker_pool, start_link, [DispatchInfo]},
+         transient, infinity, supervisor, [qlg_ranker_pool]},
     Ranker =
         {qlg_ranker, {qlg_ranker, start_link, [DispatchInfo]},
          permanent, 5000, worker, [qlg_ranker]},
@@ -52,6 +55,7 @@ init([]) ->
                                     FetchMatchPool,
                                     PgsqlSrv,
                                     MatchAnalyzer,
+                                    RankerPool,
                                     Ranker,
                                     Timer]} }.
 

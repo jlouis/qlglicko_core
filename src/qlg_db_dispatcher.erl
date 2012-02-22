@@ -35,7 +35,7 @@ handle_info(_Msg, State) ->
     {ok, State}.
 
 terminate(_Reason, #state { resource = C }) ->
-    ok = pgsql:disconnect(C),
+    ok = pgsql:close(C),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
