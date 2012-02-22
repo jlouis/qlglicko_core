@@ -91,6 +91,7 @@ fetch_players(Tournament) ->
 
 rank_player(P, C, T) ->
     {P, R, RD1, Sigma} = rank1(P, C, T),
+    lager:debug("Ranked player ~p (~p, ~p, ~p)", [P, R, RD1, Sigma]),
     store_player_rating(P, R, RD1, Sigma, T),
     ok.
 
