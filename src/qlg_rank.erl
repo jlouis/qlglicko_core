@@ -11,17 +11,21 @@ rank(T, I) ->
 rank(Tournament, Info, Options) ->
     ets:new(qlg_rank, [named_table, public]),
     Players = fetch_players(Tournament),
+    lager:debug("Ranking ~B players for tournament ~p", [length(Players),
+                                                         Tournament]),
     _ = rank_parallel([P || {P} <- Players], [], Tournament, Info),
     case proplists:get_value(write_csv, Options) of
         undefined ->
             ok;
         true ->
+            lager:debug("Writing CSV file"),
             ok = write_csv()
     end,
     case proplists:get_value(save_tournament, Options) of
         undefined ->
             ok;
         true ->
+            lager:debug("Store rankings in DB"),
             store_tournament_ranking(Tournament)
     end,
     ets:delete(qlg_rank),
@@ -62,6 +66,7 @@ rank_parallel(Players, Workers, Tournament, Info) when is_list(Players) ->
             error:badarg ->
                 {Players, []}
         end,
+    lager:debug("Spawning a parallel ranking job"),
     rank_parallel(Rest,
                   [rpc:async_call(node(),
                                   ?MODULE,
@@ -70,18 +75,25 @@ rank_parallel(Players, Workers, Tournament, Info) when is_list(Players) ->
                    | Workers], Tournament, Info).
 
 rank_chunk(Players, Tournament, Info) ->
+    lager:debug("Requesting jobs to run a ranking job for us"),
     jobs:run(qlrank,
              fun() ->
+                     lager:debug("Running ranking job"),
                      case dispcount:checkout(Info) of
                          {ok, CheckinReference, C} ->
+                             lager:debug(
+                               "Get dispcount job, ranking ~B players",
+                               [length(Players)]),
                              _ = [rank_player(P, C, Tournament)
                                   || P <- Players],
+                             lager:debug("Checkin to dispcount again"),
                              dispcount:checkin(Info, CheckinReference, C)
                      end,
                      ok
              end).
 
 rank_collect(Workers) ->
+    lager:debug("Collecting workers to make sure all ranking is done"),
     [rpc:yield(K) || K <- Workers].
 
 
@@ -90,12 +102,14 @@ fetch_players(Tournament) ->
     Players.
 
 rank_player(P, C, T) ->
+    lager:debug("Ranking player ~p", [P]),
     {P, R, RD1, Sigma} = rank1(P, C, T),
     lager:debug("Ranked player ~p (~p, ~p, ~p)", [P, R, RD1, Sigma]),
     store_player_rating(P, R, RD1, Sigma, T),
     ok.
 
 rank1(Player, C, T) ->
+    lager:debug("Fetching player rating"),
     {Player, R, RD, Sigma} =
         case qlg_pgsql_srv:fetch_player_rating(C, Player) of
             {ok, _, []} ->
@@ -103,7 +117,9 @@ rank1(Player, C, T) ->
             {ok, _, [Rating]} ->
                 Rating
         end,
+    lager:debug("Fetching player wins"),
     Wins = qlg_pgsql_srv:fetch_wins(C, Player, T),
+    lager:debug("Fetching player losses"),
     Losses = qlg_pgsql_srv:fetch_losses(C, Player, T),
     case Wins ++ Losses of
         [] ->

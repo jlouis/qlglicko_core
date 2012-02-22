@@ -227,9 +227,9 @@ ex_players_in_tournament(C, T) ->
 ex_fetch_player_rating(C, P) ->
     pgsql:equery(
       C,
-      "SELECT id, r, rd, sigma "
+      "SELECT player_id, r, rd, sigma "
       "FROM player_ratings "
-      "WHERE id = $1", [P]).
+      "WHERE player_id = $1", [P]).
 
 ex_fetch_match(C, Id) ->
     {ok, _, [{Content}]} = pgsql:equery(
