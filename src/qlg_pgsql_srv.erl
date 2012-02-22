@@ -219,7 +219,9 @@ code_change(_OldVsn, State, _Extra) ->
 ex_players_in_tournament(C, T) ->
     pgsql:equery(
       C,
-      "SELECT player FROM tournament_players WHERE tournament = $1",
+      "SELECT player as player_id FROM tournament_players WHERE tournament = $1"
+      "  UNION "
+      "SELECT player_id FROM player_ratings",
       [T]).
 
 ex_fetch_player_rating(C, P) ->
