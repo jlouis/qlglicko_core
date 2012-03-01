@@ -29,7 +29,9 @@ g_opponents() ->
 prop_glicko_terminates() ->
     ?FORALL({{R, RD, Sigma}, Opponents},
             {g_player(), g_opponents()},
-            begin
-                {_R1, _RD1, _Sigma1} = glicko2:rate(R, RD, Sigma, Opponents),
-                true
-            end).
+            ?TIMEOUT(
+               3000,
+               begin
+                   {_R1, _RD1, _Sigma1} = glicko2:rate(R, RD, Sigma, Opponents),
+                   true
+               end)).
