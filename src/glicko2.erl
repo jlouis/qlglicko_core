@@ -70,12 +70,12 @@ compute_volatility(Sigma, Phi, V, Delta) ->
         end,
     FA = F(A),
     FB = F(B),
-    compute_volatility(A, B, F, FA, FB, A).
+    compute_volatility(A, B, F, FA, FB).
 
-compute_volatility(A, B, _F, _FA, _FB, _IA) when abs(B - A) < ?EPSILON ->
+compute_volatility(A, B, _F, _FA, _FB) when abs(B - A) < ?EPSILON ->
     math:exp(A/2);
-compute_volatility(A, B, F, FA, FB, IA) ->
-    C = A + (IA - B)*FA / (FB - FA),
+compute_volatility(A, B, F, FA, FB) ->
+    C = A + (A - B)*FA / (FB - FA),
     FC = F(C),
     {NA, NFA} =
         case FC * FB < 0 of
@@ -84,7 +84,7 @@ compute_volatility(A, B, F, FA, FB, IA) ->
             false ->
                 {A, FA / 2}
         end,
-    compute_volatility(NA, C, F, NFA, FC, IA).
+    compute_volatility(NA, C, F, NFA, FC).
             
 %% Step 6
 phi_star(SigmaP, Phi) ->
