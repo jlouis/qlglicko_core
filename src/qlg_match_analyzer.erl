@@ -96,10 +96,7 @@ persist_duel_match(Id, JSON) ->
                                  {P1_Id, P1S},
                                   {P2_Id, P2S}) of
                         {ok, M} ->
-                            qlg_pgsql_srv:store_match(Id, M);
-                        {error, Reason} ->
-                            lager:info("Not analyzing match ~p: ~p",
-                                       [Id, Reason])
+                            qlg_pgsql_srv:store_match(Id, M)
                     end,
                     ok;
                 _Otherwise ->

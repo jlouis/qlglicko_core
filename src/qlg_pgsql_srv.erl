@@ -13,6 +13,7 @@
 -export([start_link/0]).
 -export([store_match/2,
          db_connect/0,
+         tournament_matches/1,
          select_player/1,
          players_to_refresh/0,
          matches_to_fetch/0,
@@ -79,6 +80,9 @@ should_match_be_updated(Id) ->
 
 should_player_be_refreshed(Id) ->
     call({should_player_be_refreshed, Id}).
+
+tournament_matches(T) ->
+    call({tournament_matches, T}).
 
 store_player_ranking(T, PI) ->
     call({store_player_ranking, T, PI}).
@@ -184,6 +188,9 @@ handle_call({mk_player, Name}, _From, #state { conn = C } = State) ->
 handle_call({refresh_player, Id}, _From, #state { conn = C } = State) ->
     Reply = ex_refresh_player(C, Id),
     {reply, Reply, State};
+handle_call({tournament_matches, T}, _From, #state { conn = C } = State) ->
+    Reply = ex_tournament_matches(C, T),
+    {reply, Reply, State};
 handle_call({tournament_mark_ranked, Id},
             _From, #state { conn = C } = State) ->
     Reply = ex_mark_tournament_ranked(C, Id),
@@ -216,13 +223,10 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
-ex_players_in_tournament(C, T) ->
+ex_players_in_tournament(C, _T) ->
     pgsql:equery(
       C,
-      "SELECT player as player_id FROM tournament_players WHERE tournament = $1"
-      "  UNION "
-      "SELECT player_id FROM player_ratings",
-      [T]).
+      "SELECT player_id, r, rd, sigma FROM player_ratings").
 
 ex_fetch_player_rating(C, P) ->
     pgsql:equery(
@@ -242,6 +246,15 @@ ex_matches_to_analyze(C) ->
     pgsql:equery(
       C,
       "SELECT id FROM matches_to_analyze LIMIT 3000").
+
+ex_tournament_matches(C, T) ->
+    {ok, _, Matches} =
+        pgsql:equery(
+          C,
+          "SELECT winner, loser FROM duel_match dm, tournament t "
+          "WHERE t.id = $1 AND played BETWEEN t.t_from and t.t_to",
+          [T]),
+    Matches.
 
 ex_fetch_player_name(C, Id) ->
     {ok, _, [{Pname}]} = pgsql:equery(C,

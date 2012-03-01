@@ -10,7 +10,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/1, spawn_worker/2]).
+-export([start_link/1, spawn_worker/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -25,9 +25,9 @@
 start_link(DispatchInfo) ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, [DispatchInfo]).
 
-spawn_worker(T, Ps) ->
+spawn_worker(Ps) ->
     {ok, Pid} = supervisor:start_child(?SERVER, []),
-    qlg_rank_worker:run(Pid, T, Ps),
+    qlg_rank_worker:run(Pid, Ps),
     {ok, Pid}.
 
 %%%===================================================================

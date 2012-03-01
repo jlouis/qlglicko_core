@@ -9,7 +9,13 @@ rank(T, I) ->
 
 rank(Tournament, Info, Options) ->
     ets:new(qlg_rank, [named_table, public]),
+    ets:new(qlg_player_ratings,
+            [named_table, public, {read_concurrency, true}]),
+    ets:new(qlg_matches,
+            [named_table, public, {read_concurrency, true},
+             duplicate_bag]),
     Players = fetch_players(Tournament),
+    populate_match_table(Tournament),
     lager:debug("Ranking ~B players for tournament ~p", [length(Players),
                                                          Tournament]),
     _ = rank_parallel([P || {P} <- Players], [], Tournament, Info),
@@ -28,7 +34,16 @@ rank(Tournament, Info, Options) ->
             store_tournament_ranking(Tournament)
     end,
     ets:delete(qlg_rank),
+    ets:delete(qlg_player_ratings),
+    ets:delete(qlg_matches),
     ok.
+
+populate_match_table(T) ->
+    Matches = qlg_pgsql_srv:tournament_matches(T),
+    [begin
+         ets:insert(qlg_matches, {{Winner, w}, Loser}),
+         ets:insert(qlg_matches, {{Loser, l}, Winner})
+     end || {Winner, Loser} <- Matches].
 
 store_tournament_ranking(T) ->
     store_tournament_ranking(T, ets:match_object(qlg_rank, '$1', ?CHUNK_SIZE)).
@@ -66,7 +81,7 @@ rank_parallel(Players, Workers, Tournament, Info) when is_list(Players) ->
                 {Players, []}
         end,
     lager:debug("Spawning a parallel ranking job"),
-    {ok, Pid} = qlg_ranker_pool:spawn_worker(Tournament, Chunk),
+    {ok, Pid} = qlg_ranker_pool:spawn_worker(Chunk),
     rank_parallel(Rest,
                   [Pid | Workers], Tournament, Info).
 
@@ -77,7 +92,9 @@ rank_collect(Workers) ->
 
 fetch_players(Tournament) ->
     {ok, _, Players} = qlg_pgsql_srv:players_in_tournament(Tournament),
-    Players.
-
+    [begin
+         ets:insert(qlg_player_ratings, P),
+         Name
+     end || {Name, _, _, _} = P <- Players].
 
 
