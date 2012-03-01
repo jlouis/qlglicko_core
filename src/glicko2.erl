@@ -1,10 +1,7 @@
 -module(glicko2).
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
-
 -export([phi_star/2,
+         glicko_test/0,
          rate/4]).
 
 -define(TAU, 0.5). % Good values are between 0.3 and 1.2
@@ -97,8 +94,6 @@ rate(R, RD, Sigma, Opponents) ->
     {R1, RD1} = unscale(MuP, PhiP),
     {R1, RD1, SigmaP}.
 
--ifdef(EUNIT).
-
 data() ->
     Player = {a, 1500, 200},
     Volatility = 0.06,
@@ -110,29 +105,26 @@ data() ->
 glicko_test() ->
     {{a, R, RD}, Sigma, Opponents} = data(),
     {Mu, Phi} = scale(R, RD),
-    ?assertEqual({0.0, 1.1512924985234674}, {Mu, Phi}),
+    {0.0, 1.1512924985234674} = {Mu, Phi},
     ScaledOpponents = scale_opponents(Mu, Opponents),
-    ?assertEqual(
-       [{-0.5756462492617337,0.1726938747785201,
-          0.9954980064506083,0.6394677305521533,1},
+    [{-0.5756462492617337,0.1726938747785201,
+      0.9954980064506083,0.6394677305521533,1},
+     
+     {0.28782312463086684,0.5756462492617337,
+      0.9531489778689763,0.4318423561076679,0},
 
-        {0.28782312463086684,0.5756462492617337,
-         0.9531489778689763,0.4318423561076679,0},
-
-        {1.1512924985234674,1.726938747785201,
-         0.7242354780877526,0.30284072909521925,0}],
-       ScaledOpponents),
+     {1.1512924985234674,1.726938747785201,
+      0.7242354780877526,0.30284072909521925,0}] = ScaledOpponents,
     V = update_rating(ScaledOpponents),
-    ?assertEqual(1.7789770897239976, V),
+    1.7789770897239976 = V,
     Delta = compute_delta(V, ScaledOpponents),
-    ?assertEqual(-0.4839332609836549, Delta),
+    -0.4839332609836549 = Delta,
     SigmaP = compute_volatility(Sigma, Phi, V, Delta),
-    ?assertEqual(0.059995984400677826, SigmaP),
+    0.059995984400677826 = SigmaP,
     PhiStar = phi_star(SigmaP, Phi),
-    ?assertEqual(1.152854689586079, PhiStar),
+    1.152854689586079 = PhiStar,
     {MuP, PhiP} = new_rating(PhiStar, Mu, V, ScaledOpponents),
-    ?assertEqual({-0.20694096667647613, 0.8721991881333078}, {MuP, PhiP}),
+    {-0.20694096667647613, 0.8721991881333078} = {MuP, PhiP},
     {R1, RD1} = unscale(MuP, PhiP),
-    ?assertEqual({1464.0506705390892,151.51652412430434}, {R1, RD1}).
+    {1464.0506705390892,151.51652412430434} = {R1, RD1}.
 
--endif.
