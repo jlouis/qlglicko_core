@@ -45,9 +45,11 @@ vol_f(Phi, V, Delta, A) ->
     PHI2 = Phi*Phi,
     fun(X) ->
             EX = math:exp(X),
-            ((EX * (Delta*Delta) - PHI2 - V - EX)
-             / (2*(PHI2 + V + EX))) -
-                (X - A) / ?TAU*?TAU
+            D2 = Delta*Delta,
+            A2 = (PHI2 + V + EX),
+            P2 = (X - A) / (?TAU * ?TAU),
+            P1 = (EX * (D2 - PHI2 - V - EX))  / (2*A2*A2),
+            P1 - P2
     end.
 
 vol_k(K, F, A) ->
@@ -143,11 +145,11 @@ glicko_test() ->
     Delta = compute_delta(V, ScaledOpponents),
     -0.4839332609836549 = Delta,
     SigmaP = compute_volatility(Sigma, Phi, V, Delta),
-    0.059995984400677826 = SigmaP,
+    0.059995984286488495 = SigmaP,
     PhiStar = phi_star(SigmaP, Phi),
-    1.152854689586079 = PhiStar,
+    1.1528546895801364 = PhiStar,
     {MuP, PhiP} = new_rating(PhiStar, Mu, V, ScaledOpponents),
-    {-0.20694096667647613, 0.8721991881333078} = {MuP, PhiP},
+    {-0.20694096667525494, 0.8721991881307343} = {MuP, PhiP},
     {R1, RD1} = unscale(MuP, PhiP),
-    {1464.0506705390892,151.51652412430434} = {R1, RD1}.
+    {1464.0506705393013, 151.51652412385727} = {R1, RD1}.
 
