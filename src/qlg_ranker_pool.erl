@@ -40,7 +40,7 @@ init([DispatchInfo]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    Restart = permanent,
+    Restart = temporary,
     Shutdown = 2000,
     Type = worker,
 
