@@ -91,14 +91,15 @@ player_ranking(P) ->
     
 rank1(Player) ->
     lager:debug("Fetching player rating"),
-    {Player, R, RD, Sigma} = player_ranking(Player),
+    {Player, R, RD, Sigma} = Ranking = player_ranking(Player),
+    lager:debug("Player: ~p", [Ranking]),
     Wins = [begin
-                {_P, R, RD, _Sigma} = player_ranking(Opp),
-                {R, RD, 1}
+                {_P, LR, LRD, _Sigma} = player_ranking(Opp),
+                {LR, LRD, 1}
             end || {_, Opp} <- ets:lookup(qlg_matches, {Player, w})],
     Losses = [begin
-                  {_P, R, RD, _Sigma} = player_ranking(Opp),
-                  {R, RD, 0}
+                  {_P, WR, WRD, _Sigma} = player_ranking(Opp),
+                  {WR, WRD, 0}
               end || {_, Opp} <- ets:lookup(qlg_matches, {Player, l})],
     case Wins ++ Losses of
         [] ->
@@ -107,7 +108,9 @@ rank1(Player) ->
         Opponents ->
             {R1, RD1, Sigma1} =
                 glicko2:rate(R, RD, Sigma, Opponents),
-            {Player, R1, RD1, Sigma1}
+            NRanking = {Player, R1, RD1, Sigma1},
+            lager:debug("New rank: ~p", [NRanking]),
+            NRanking
     end.
 
 store_player_rating(P, R, RD, Sigma) ->

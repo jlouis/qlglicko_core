@@ -18,7 +18,9 @@ rank(Tournament, Info, Options) ->
     populate_match_table(Tournament),
     lager:debug("Ranking ~B players for tournament ~p", [length(Players),
                                                          Tournament]),
-    _ = rank_parallel([P || {P} <- Players], [], Tournament, Info),
+    lager:debug("Number of matches in tournament: ~B",
+                [ets:info(qlg_matches, size)]),
+    _ = rank_parallel(Players, [], Tournament, Info),
     case proplists:get_value(write_csv, Options) of
         undefined ->
             ok;
