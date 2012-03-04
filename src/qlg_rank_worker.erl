@@ -71,18 +71,16 @@ rank_chunk(Players, Tournament, Info) ->
     jobs:run(qlrank,
              fun() ->
                      lager:debug("Running ranking job"),
-                     case dispcount:checkout(Info) of
-                         {ok, CheckinReference, C} ->
-                             lager:debug(
-                               "Get dispcount job, ranking ~B players",
-                               [length(Players)]),
-                             _ = [rank_player(P, C, Tournament)
-                                  || P <- Players],
-                             lager:debug("Checkin to dispcount again"),
-                             dispcount:checkin(Info, CheckinReference, C)
-                     end,
-                     ok
+                     rank_loop(Players, Tournament, Info, 30)
              end).
+
+rank_loop(_, _, _, 0) ->
+    lager:error("Ranker giving up getting a PGSQL resource"),
+    exit(pgsql_resource_busy);
+rank_loop(Players, Tournament, _Info, K) ->
+    {ok, C} = qlg_pgsql_srv:db_connect(),
+    _ = [rank_player(P, C, Tournament)
+         || P <- Players].
 
 rank_player(P, C, T) ->
     lager:debug("Ranking player ~p", [P]),

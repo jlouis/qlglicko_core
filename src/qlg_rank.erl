@@ -2,7 +2,7 @@
 
 -export([rank/2, rank/3]).
 
--define(CHUNK_SIZE, 1000).
+-define(CHUNK_SIZE, 15000).
 
 rank(T, I) ->
     rank(T, I, []).
