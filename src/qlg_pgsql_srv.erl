@@ -223,10 +223,18 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
-ex_players_in_tournament(C, _T) ->
-    pgsql:equery(
-      C,
-      "SELECT player_id, r, rd, sigma FROM player_ratings").
+ex_players_in_tournament(C, T) ->
+    {ok, _, Players} =
+        pgsql:equery(
+          C,
+          "SELECT player_id, r, rd, sigma FROM player_ratings"),
+    {ok, _, NewPlayers} =
+        pgsql:equery(
+          C,
+          "SELECT player, 1500, 350, 0.06 :: float FROM tournament_players"
+          " WHERE player NOT IN (SELECT player_id FROM player_ratings) "
+          " AND tournament = $1", [T]),
+    {ok, foo, Players ++ NewPlayers}.
 
 ex_fetch_player_rating(C, P) ->
     pgsql:equery(
