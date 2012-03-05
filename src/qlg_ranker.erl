@@ -35,7 +35,7 @@ rank(Id) ->
     rank(Id, []).
 
 rank(Id, Opts) ->
-    gen_server:call(?SERVER, {rank, Id, Opts}, 120*1000).
+    gen_server:call(?SERVER, {rank, Id, Opts}, 240*1000).
 
 %%%===================================================================
 
