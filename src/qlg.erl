@@ -1,6 +1,6 @@
 -module(qlg).
 
--export([rank/1, rank/2]).
+-export([rank/0, rank/1, rank/2]).
 
 rank() ->
     {ok, Ts} = qlg_pgsql_srv:all_tournaments(),

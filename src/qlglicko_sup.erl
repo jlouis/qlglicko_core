@@ -47,16 +47,15 @@ init([]) ->
     Ranker =
         {qlg_ranker, {qlg_ranker, start_link, [DispatchInfo]},
          permanent, 5000, worker, [qlg_ranker]},
-    Timer =
-        {qlglicko_timer, {qlglicko_timer, start_link, []},
-         permanent, 5000, worker, [qlglicko_timer]},
+    %% Timer =
+    %%     {qlglicko_timer, {qlglicko_timer, start_link, []},
+    %%      permanent, 5000, worker, [qlglicko_timer]},
     {ok, { {one_for_all, 3, 3600}, [OverloadDetect,
                                     FetchPlayerPool,
                                     FetchMatchPool,
                                     PgsqlSrv,
                                     MatchAnalyzer,
                                     RankerPool,
-                                    Ranker,
-                                    Timer]} }.
+                                    Ranker]} }.
 
 
