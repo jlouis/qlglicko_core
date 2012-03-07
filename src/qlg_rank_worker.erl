@@ -67,32 +67,29 @@ code_change(_OldVsn, State, _Extra) ->
 
 %%%===================================================================
 rank_chunk(Players) ->
-    lager:debug("Requesting jobs to run a ranking job for us"),
     jobs:run(qlrank,
              fun() ->
-                     lager:debug("Running ranking job"),
                      _ = [rank_player(P) || P <- Players],
                      ok
              end).
 
 rank_player(P) ->
     {P, R, RD1, Sigma} = rank1(P),
-    lager:debug("Ranked player ~p (~p, ~p, ~p)", [P, R, RD1, Sigma]),
     store_player_rating(P, R, RD1, Sigma),
     ok.
 
 player_ranking(P) ->
     case ets:lookup(qlg_player_ratings, P) of
         [] ->
-            {P, 1500.0, 350.0, 0.06};
+            {R, RD, Sigma} = gproc:get_env(l, qlglicko, default_ranking,
+                                           [app_env, error]),
+            {P, R, RD, Sigma};
         [Rating] ->
             Rating
     end.
     
 rank1(Player) ->
-    lager:debug("Fetching player rating"),
-    {Player, R, RD, Sigma} = Ranking = player_ranking(Player),
-    lager:debug("Player: ~p", [Ranking]),
+    {Player, R, RD, Sigma} = player_ranking(Player),
     Wins = [begin
                 {_P, LR, LRD, _Sigma} = player_ranking(Opp),
                 {LR, LRD, 1}
@@ -109,7 +106,6 @@ rank1(Player) ->
             {R1, RD1, Sigma1} =
                 glicko2:rate(R, RD, Sigma, Opponents),
             NRanking = {Player, R1, RD1, Sigma1},
-            lager:debug("New rank: ~p", [NRanking]),
             NRanking
     end.
 

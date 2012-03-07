@@ -13,6 +13,7 @@
 -export([start_link/0]).
 -export([store_match/2,
          db_connect/0,
+         all_tournaments/0,
          tournament_matches/1,
          select_player/1,
          players_to_refresh/0,
@@ -56,6 +57,9 @@ db_connect() ->
 
 call(Msg) ->
     gen_server:call(?MODULE, Msg, 60000).
+
+all_tournaments() ->
+    gen_server:call(?MODULE, all_tournaments).
 
 fetch_match(Id) ->
     gen_server:call(?MODULE, {fetch_match, Id}).
@@ -149,6 +153,10 @@ handle_call({should_match_be_updated, Id}, _From,
 handle_call({fetch_match, Id}, _From,
             #state { conn = C } = State) ->
     Reply = ex_fetch_match(C, Id),
+    {reply, Reply, State};
+handle_call(all_tournaments, _From,
+            #state { conn = C } = State) ->
+    Reply = ex_all_tournaments(C),
     {reply, Reply, State};
 handle_call({fetch_player_name, Id}, _From,
             #state { conn = C } = State) ->
@@ -254,6 +262,14 @@ ex_matches_to_analyze(C) ->
     pgsql:equery(
       C,
       "SELECT id FROM matches_to_analyze LIMIT 3000").
+
+ex_all_tournaments(C) ->
+    {ok, _, Tournaments} =
+        pgsql:equery(
+          C,
+          "SELECT id FROM tournament"
+          "ORDER BY t_from ASC"),
+    {ok, [T || {T} <- Tournaments]}.
 
 ex_tournament_matches(C, T) ->
     {ok, _, Matches} =
