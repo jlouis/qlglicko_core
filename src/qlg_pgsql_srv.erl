@@ -267,7 +267,7 @@ ex_all_tournaments(C) ->
     {ok, _, Tournaments} =
         pgsql:equery(
           C,
-          "SELECT id FROM tournament"
+          "SELECT id FROM tournament "
           "ORDER BY t_from ASC"),
     {ok, [T || {T} <- Tournaments]}.
 

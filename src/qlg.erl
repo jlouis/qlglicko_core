@@ -4,7 +4,7 @@
 
 rank() ->
     {ok, Ts} = qlg_pgsql_srv:all_tournaments(),
-    [rank(T) || T <- Ts].
+    [rank(T, [write_csv, save_tournament]) || T <- Ts].
 
 rank(Id) ->
     rank(Id, []).
