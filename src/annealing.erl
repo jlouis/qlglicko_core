@@ -2,9 +2,9 @@
 
 -export([anneal/1, anneal/2]).
 
--define(KMAX, 2500).
+-define(KMAX, 1000).
 -define(EMAX, 0.00001).
--define(INITIAL_TEMP, 100000).
+-define(GRACE, 500).
 
 anneal(S0) ->
     anneal(S0, 4).
@@ -13,8 +13,6 @@ anneal(S0, K) ->
     Originator = self(),
     Ref = make_ref(),
     spawn_link(fun() ->
-                       ets:new(anneal_incumbent, [named_table, protected,
-                                                  {read_concurrency, true}]),
                        Res = controller(S0, K),
                        Originator ! {Ref, Res}
                end),
@@ -28,34 +26,39 @@ controller(S0, K) ->
     Pids = [spawn_link(fun() ->
                                anneal_worker(Ctl, S0)
                        end) || _ <- lists:seq(1,K)],
-    ets:insert(anneal_incumbent, {incumbent, S0, e(S0)}),
-    controller_loop(Pids).
+    controller_loop(Pids, S0, e(S0)).
 
-controller_loop([]) ->
-    Res = ets:lookup(anneal_incumbent, incumbent),
-    Res;
-controller_loop(Pids) when is_list(Pids) ->
+controller_loop([], IS, IE) ->
+    {IS, IE};
+controller_loop(Pids, IS, IE) when is_list(Pids) ->
     receive
-        {new_incumbent, SB, EB} ->
-            case ets:lookup(anneal_incumbent, incumbent) of
-                [{incumbent, _, OEB}] when OEB > EB ->
-                    ets:insert(anneal_incumbent, {incumbent, SB, EB});
-                [{incumbent, _, _}] ->
-                    ok
-            end,
-            controller_loop(Pids);
+        {new_incumbent, SB, EB} when IE > EB ->
+            controller_loop(Pids, SB, EB);
+        {new_incumbent, _SB, _EB} ->
+            controller_loop(Pids, IS, IE);
         {done, Pid} ->
-            controller_loop(Pids -- [Pid])
+            controller_loop(Pids -- [Pid], IS, IE)
+    after ?GRACE ->
+            [P ! {new_incumbent, IS, IE} || P <- Pids],
+            controller_loop(Pids, IS, IE)
     end.
 
 anneal_worker(Ctl, S0) ->
     sfmt:seed(os:timestamp()),
     S = S0,
     E = e(S),
-    anneal(Ctl, S, E, S, E, 0).
+    anneal_check(Ctl, S, E, S, E, 0).
+
+anneal_check(Ctl, S, E, SB, EB, K) ->
+    receive
+        {new_incumbent, NSB, NEB} ->
+            anneal(Ctl, S, E, NSB, NEB, K)
+    after 0 ->
+            anneal(Ctl, S, E, SB, EB, K)
+    end.
 
 anneal(Ctl, S, E, SB, EB, K) when K < ?KMAX, E > ?EMAX ->
-    T = temperature(K / ?KMAX),
+    T = temperature(1, K),
     SN = neighbour(S),
     EN = e(SN),
     {NextS, NextE} = case p(E, EN, T) > sfmt:uniform() of
@@ -70,11 +73,18 @@ anneal(Ctl, S, E, SB, EB, K) when K < ?KMAX, E > ?EMAX ->
                                {SN, EN};
                            false -> {SB, EB}
                        end,
-    anneal(Ctl, NextS, NextE, NextSB, NextEB, K+1);
+    anneal_check(Ctl, NextS, NextE, NextSB, NextEB, K+1);
 anneal(Ctl, _, _, _, _, _) -> Ctl ! {done, self()}.
 
-temperature(X) ->
-    (1 - X). %% This is very naive at the moment.
+temperature(T0, K) ->
+    temperature(exp, T0, K).
+
+temperature(exp, T0, K) ->
+    T0 * math:pow(0.995, K);
+temperature(fast, T0, K) ->
+    T0 / K;
+temperature(boltz, T0, K) ->
+    T0 / math:log(K).
 
 f(X) ->
     (X + 4) * (X + 1) * (X - 2) / 4.0.
