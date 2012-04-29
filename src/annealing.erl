@@ -61,9 +61,11 @@ anneal(Ctl, S, E, SB, EB, K) when K < ?KMAX, E > ?EMAX ->
                          false -> {S, E}
                      end,
     {NextSB, NextEB} = case EN < EB of
-                           true  -> Ctl ! {new_incumbent, SN, EN},
-                                    {SN, EN};
-                           false -> {SB, EB}
+                           true  ->
+                               Ctl ! {new_incumbent, SN, EN},
+                               {SN, EN};
+                           false ->
+                               {SB, EB}
                        end,
     anneal_check(Ctl, NextS, NextE, NextSB, NextEB, K+1);
 anneal(Ctl, _, _, _, _, _) -> Ctl ! {done, self()}.
