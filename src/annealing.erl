@@ -33,14 +33,12 @@ controller_loop([], IS, IE) ->
 controller_loop(Pids, IS, IE) when is_list(Pids) ->
     receive
         {new_incumbent, SB, EB} when IE > EB ->
+            [P ! {new_incumbent, SB, EB} || P <- Pids],
             controller_loop(Pids, SB, EB);
-        {new_incumbent, _SB, _EB} ->
+        {new_incumbent, _SB, _EB}            ->
             controller_loop(Pids, IS, IE);
-        {done, Pid} ->
+        {done, Pid}                          ->
             controller_loop(Pids -- [Pid], IS, IE)
-    after ?GRACE ->
-            [P ! {new_incumbent, IS, IE} || P <- Pids],
-            controller_loop(Pids, IS, IE)
     end.
 
 anneal_worker(Ctl, S0) ->
@@ -50,11 +48,8 @@ anneal_worker(Ctl, S0) ->
     anneal_check(Ctl, S, E, S, E, 0).
 
 anneal_check(Ctl, S, E, SB, EB, K) ->
-    receive
-        {new_incumbent, NSB, NEB} ->
-            anneal(Ctl, S, E, NSB, NEB, K)
-    after 0 ->
-            anneal(Ctl, S, E, SB, EB, K)
+    receive {new_incumbent, NSB, NEB} -> anneal(Ctl, S, E, NSB, NEB, K)
+    after 0                           -> anneal(Ctl, S, E, SB, EB, K)
     end.
 
 anneal(Ctl, S, E, SB, EB, K) when K < ?KMAX, E > ?EMAX ->
@@ -62,15 +57,12 @@ anneal(Ctl, S, E, SB, EB, K) when K < ?KMAX, E > ?EMAX ->
     SN = neighbour(S),
     EN = e(SN),
     {NextS, NextE} = case p(E, EN, T) > sfmt:uniform() of
-                         true ->
-                             {SN, EN};
-                         false ->
-                             {S, E}
+                         true  -> {SN, EN};
+                         false -> {S, E}
                      end,
     {NextSB, NextEB} = case EN < EB of
-                           true ->
-                               Ctl ! {new_incumbent, SN, EN},
-                               {SN, EN};
+                           true  -> Ctl ! {new_incumbent, SN, EN},
+                                    {SN, EN};
                            false -> {SB, EB}
                        end,
     anneal_check(Ctl, NextS, NextE, NextSB, NextEB, K+1);
