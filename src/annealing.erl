@@ -33,6 +33,7 @@ controller_loop([], IS, IE) ->
 controller_loop(Pids, IS, IE) when is_list(Pids) ->
     receive
         {new_incumbent, SB, EB} when IE > EB ->
+            io:format("Improved incumbent: ~p Energy: ~p~n", [SB, EB]),
             [P ! {new_incumbent, SB, EB} || P <- Pids],
             controller_loop(Pids, SB, EB);
         {new_incumbent, _SB, _EB}            ->
