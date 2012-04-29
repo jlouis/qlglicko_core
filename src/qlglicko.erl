@@ -1,6 +1,16 @@
--module(qlrank).
+-module(qlglicko).
 
--export([run/0]).
+-export([rank/0, rank/1, rank/2, rank_aux/1]).
+
+rank() ->
+    {ok, Ts} = qlg_pgsql_srv:all_tournaments(),
+    [rank(T, [write_csv, save_tournament]) || T <- Ts].
+
+rank(Id) ->
+    rank(Id, []).
+
+rank(Id, Opts) ->
+    qlg_ranker:rank(Id, Opts).
 
 players(Matches) ->
     lists:usort(
@@ -14,22 +24,12 @@ fetch_ratings() ->
     ets:match_delete(qlrank_rate_result, '_'),
     NewRatings.
 
-run() ->
-    init_rate_result_table(),
-    Tournaments = [fun iem5:matches/0,
-                   fun dhs2011:matches/0,
-                   fun quakecon2011:matches/0,
-                   fun dhw2011:matches/0],
-    glicko_db:create_db(),
-    glicko(Tournaments),
-    glicko_db:csv("rating_output.csv").
-
 glicko([]) -> done;
 glicko([MatchObj | Next]) ->
     ok = rank(MatchObj()),
     glicko(Next).
 
-rank(Matches) ->
+rank_aux(Matches) ->
     Players = players(Matches),
     error_logger:info_report([players, Players]),
     glicko_db:add_new_players(Players),
