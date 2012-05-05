@@ -1,8 +1,36 @@
 -module(qlg_rank).
 
--export([rank/2, rank/3]).
+-export([rank/2, rank/3,
+         load_all/0,
+         unload_all/0,
+         load_tournaments/1]).
 
 -define(CHUNK_SIZE, 15000).
+
+unload_all() ->
+    ets:delete(qlg_matches).
+
+load_all() ->
+    {ok, Ts} = qlg_pgsql_srv:all_tournaments(),
+    load_tournaments(Ts),
+    {ok, ets:info(qlg_matches, size)}.
+
+load_tournaments(Ts) ->
+    ets:new(qlg_matches,
+            [named_table, public, {read_concurrency, true},
+             duplicate_bag]),
+    Counted = lists:zip(lists:seq(1, length(Ts)), Ts),
+    [load_tournament(K, T) || {K, T} <- Counted].
+
+%% @doc Load tournaments from disk
+%% This populates the qlg_matches table with a number of tournaments
+%% from the disk.
+load_tournament(Idx, T) ->
+    Matches = qlg_pgsql_srv:tournament_matches(T),
+    [begin
+         ets:insert(qlg_matches, {{Idx, {Winner, w}}, Loser}),
+         ets:insert(qlg_matches, {{Idx, {Loser, l}}, Winner})
+     end || {Winner, Loser} <- Matches].
 
 rank(T, I) ->
     rank(T, I, []).
@@ -11,11 +39,7 @@ rank(Tournament, Info, Options) ->
     ets:new(qlg_rank, [named_table, public]),
     ets:new(qlg_player_ratings,
             [named_table, public, {read_concurrency, true}]),
-    ets:new(qlg_matches,
-            [named_table, public, {read_concurrency, true},
-             duplicate_bag]),
     Players = fetch_players(Tournament),
-    populate_match_table(Tournament),
     lager:debug("Ranking ~B players for tournament ~p", [length(Players),
                                                          Tournament]),
     lager:debug("Number of matches in tournament: ~B",
@@ -40,12 +64,6 @@ rank(Tournament, Info, Options) ->
     ets:delete(qlg_matches),
     ok.
 
-populate_match_table(T) ->
-    Matches = qlg_pgsql_srv:tournament_matches(T),
-    [begin
-         ets:insert(qlg_matches, {{Winner, w}, Loser}),
-         ets:insert(qlg_matches, {{Loser, l}, Winner})
-     end || {Winner, Loser} <- Matches].
 
 store_tournament_ranking(T) ->
     store_tournament_ranking(T, ets:match_object(qlg_rank, '$1', ?CHUNK_SIZE)).
