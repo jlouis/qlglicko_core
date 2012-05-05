@@ -1,6 +1,7 @@
 -module(qlg_rank).
 
 -export([rank/2, rank/3,
+         init_players/0,
          load_all/0,
          unload_all/0,
          load_tournaments/1]).
@@ -32,6 +33,11 @@ load_tournament(Idx, T) ->
          ets:insert(qlg_matches, {{Idx, {Loser, l}}, Winner})
      end || {Winner, Loser} <- Matches].
 
+init_players() ->
+    Players = ets:match(qlg_matches, {{1, {'$1', '_'}}, '_'}),
+    S = lists:usort([P || [P] <- Players]),
+    {ok, S, length(S)}.
+    
 rank(T, I) ->
     rank(T, I, []).
 
