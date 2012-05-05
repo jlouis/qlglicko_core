@@ -1,10 +1,6 @@
 -module(qlglicko).
 
--export([rank/0, rank/1, rank/2, rank_aux/1]).
-
-rank() ->
-    {ok, Ts} = qlg_pgsql_srv:all_tournaments(),
-    [rank(T, [write_csv, save_tournament]) || T <- Ts].
+-export([rank/1, rank/2, rank_aux/1]).
 
 rank(Id) ->
     rank(Id, []).
@@ -15,9 +11,6 @@ rank(Id, Opts) ->
 players(Matches) ->
     lists:usort(
       lists:concat([[P1, P2] || {P1, P2, _} <- Matches])).
-
-init_rate_result_table() ->
-    ets:new(qlrank_rate_result, [public, named_table]).
 
 fetch_ratings() ->
     NewRatings = ets:match_object(qlrank_rate_result, {'_', '_', '_', '_'}),

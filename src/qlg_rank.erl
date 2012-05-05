@@ -40,39 +40,53 @@ init_players(Idx) ->
     Players = ets:match(qlg_matches, {{Idx, {'$1', '_'}}, '_'}),
     S = lists:usort([P || [P] <- Players]),
     {ok, S, length(S)}.
-    
-rank(T, I) ->
-    rank(T, I, []).
 
-rank(Tournament, Info, Options) ->
-    ets:new(qlg_rank, [named_table, public]),
-    ets:new(qlg_player_ratings,
-            [named_table, public, {read_concurrency, true}]),
-    Players = fetch_players(Tournament),
-    lager:debug("Ranking ~B players for tournament ~p", [length(Players),
-                                                         Tournament]),
-    lager:debug("Number of matches in tournament: ~B",
-                [ets:info(qlg_matches, size)]),
-    _ = rank_parallel(Players, [], Tournament, Info),
-    case proplists:get_value(write_csv, Options) of
-        undefined ->
-            ok;
-        true ->
-            lager:debug("Writing CSV file"),
-            ok = write_csv()
-    end,
-    case proplists:get_value(save_tournament, Options) of
-        undefined ->
-            ok;
-        true ->
-            lager:debug("Store rankings in DB"),
-            store_tournament_ranking(Tournament)
-    end,
-    ets:delete(qlg_rank),
-    ets:delete(qlg_player_ratings),
-    ets:delete(qlg_matches),
-    ok.
+rank(Idxs) ->
+    PDB = gb_trees:new(),
+    rank(PDB, Idxs).
 
+rank(DB, [I | Next]) ->
+    OldPlayers = gb_sets:keys(DB),
+    NewDB = rank(DB, lists:usort(OldPlayers ++ init_players(I)), I),
+    rank(gb_trees:from_list(NewDB), Next);
+rank(DB, []) ->
+    {ok, DB}.
+
+rank(DB, [Player | Next], Idx) ->
+    Rank = rank_player(DB, Player, Idx),
+    [Rank | rank(DB, Next, Idx)];
+rank(DB, [], _Idx) -> DB.
+
+player_ranking(DB, P) ->
+    case gb_trees:lookup(P, DB) of
+        none ->
+            {R, RD, Sigma} = gproc:get_env(l, qlglicko, default_ranking,
+                                           [app_env, error]),
+            {P, R, RD, Sigma};
+        {value, R} ->
+            R
+    end.
+
+rank_player(Db, Player, Idx) ->
+    {Player, R, RD, Sigma} = player_ranking(Db, Player),
+        Wins = [begin
+                {_P, LR, LRD, _Sigma} = player_ranking(Db, Opp),
+                {LR, LRD, 1}
+            end || {_, Opp} <- ets:lookup(qlg_matches, {Idx, {Player, w}})],
+    Losses = [begin
+                  {_P, WR, WRD, _Sigma} = player_ranking(Db, Opp),
+                  {WR, WRD, 0}
+              end || {_, Opp} <- ets:lookup(qlg_matches, {Idx, {Player, l}})],
+    case Wins ++ Losses of
+        [] ->
+            RD1 = glicko2:phi_star(RD, Sigma),
+            {Player, R, RD1, Sigma};
+        Opponents ->
+            {R1, RD1, Sigma1} =
+                glicko2:rate(R, RD, Sigma, Opponents),
+            NRanking = {Player, R1, RD1, Sigma1},
+            NRanking
+    end.
 
 store_tournament_ranking(T) ->
     store_tournament_ranking(T, ets:match_object(qlg_rank, '$1', ?CHUNK_SIZE)).
@@ -98,32 +112,4 @@ format_player({P, R, Rd, S}) ->
      float_to_list(R), $,,
      float_to_list(Rd), $,,
      float_to_list(S)].
-
-rank_parallel([], Workers, _Tournament, _Info) ->
-    rank_collect(Workers);
-rank_parallel(Players, Workers, Tournament, Info) when is_list(Players) ->
-    {Chunk, Rest} =
-        try
-            lists:split(?CHUNK_SIZE, Players)
-        catch
-            error:badarg ->
-                {Players, []}
-        end,
-    lager:debug("Spawning a parallel ranking job"),
-    {ok, Pid} = qlg_ranker_pool:spawn_worker(Chunk),
-    rank_parallel(Rest,
-                  [Pid | Workers], Tournament, Info).
-
-
-rank_collect(Workers) ->
-    lager:debug("Collecting workers to make sure all ranking is done"),
-    [qlg_rank_worker:done(Pid) || Pid <- Workers].
-
-fetch_players(Tournament) ->
-    {ok, _, Players} = qlg_pgsql_srv:players_in_tournament(Tournament),
-    [begin
-         ets:insert(qlg_player_ratings, P),
-         Name
-     end || {Name, _, _, _} = P <- Players].
-
 
