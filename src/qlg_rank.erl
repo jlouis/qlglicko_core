@@ -34,7 +34,10 @@ load_tournament(Idx, T) ->
      end || {Winner, Loser} <- Matches].
 
 init_players() ->
-    Players = ets:match(qlg_matches, {{1, {'$1', '_'}}, '_'}),
+    init_players(1). %% First tournament
+
+init_players(Idx) ->
+    Players = ets:match(qlg_matches, {{Idx, {'$1', '_'}}, '_'}),
     S = lists:usort([P || [P] <- Players]),
     {ok, S, length(S)}.
     
