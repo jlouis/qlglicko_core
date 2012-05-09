@@ -1,6 +1,6 @@
 -module(qlg_rank).
 
--export([rank/2, rank/3,
+-export([rank/1, rank/2, rank/3,
          init_players/0,
          load_all/0,
          unload_all/0,
@@ -42,29 +42,30 @@ init_players(Idx) ->
     {ok, S, length(S)}.
 
 rank(Idxs) ->
-    PDB = gb_trees:new(),
+    PDB = dict:new(),
     rank(PDB, Idxs).
 
 rank(DB, [I | Next]) ->
-    OldPlayers = gb_sets:keys(DB),
-    NewDB = rank(DB, lists:usort(OldPlayers ++ init_players(I)), I),
-    rank(gb_trees:from_list(NewDB), Next);
+    OldPlayers = dict:fetch_keys(DB),
+    {ok, Players, _L} = init_players(I),
+    NewDB = rank(DB, lists:usort(OldPlayers ++ Players), I),
+    rank(dict:from_list(NewDB), Next);
 rank(DB, []) ->
     {ok, DB}.
 
 rank(DB, [Player | Next], Idx) ->
     Rank = rank_player(DB, Player, Idx),
     [Rank | rank(DB, Next, Idx)];
-rank(DB, [], _Idx) -> DB.
+rank(DB, [], _Idx) -> [].
 
 player_ranking(DB, P) ->
-    case gb_trees:lookup(P, DB) of
-        none ->
+    case dict:find(P, DB) of
+        error ->
             {R, RD, Sigma} = gproc:get_env(l, qlglicko, default_ranking,
                                            [app_env, error]),
             {P, R, RD, Sigma};
-        {value, R} ->
-            R
+        {ok, {R, RD, Sigma}} ->
+            {P, R, RD, Sigma}
     end.
 
 rank_player(Db, Player, Idx) ->
@@ -80,12 +81,12 @@ rank_player(Db, Player, Idx) ->
     case Wins ++ Losses of
         [] ->
             RD1 = glicko2:phi_star(RD, Sigma),
-            {Player, R, RD1, Sigma};
+            {Player, {R, RD1, Sigma}};
         Opponents ->
             {R1, RD1, Sigma1} =
                 glicko2:rate(R, RD, Sigma, Opponents),
-            NRanking = {Player, R1, RD1, Sigma1},
-            NRanking
+            {Player, {R1, RD1, Sigma1}}
+
     end.
 
 store_tournament_ranking(T) ->
