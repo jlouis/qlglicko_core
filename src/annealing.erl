@@ -95,9 +95,9 @@ temperature(fast, T0, K) ->
 temperature(boltz, T0, K) ->
     T0 / math:log(K).
 
-walk_rd(RD) -> walk(RD, 1000).
-walk_sigma(Sigma) -> walk(Sigma, 0.1).
-walk_tau(Tau) -> walk(Tau, 0.25).
+walk_rd(RD) -> walk(RD, 35).
+walk_sigma(Sigma) -> walk(Sigma, 0.01).
+walk_tau(Tau) -> walk(Tau, 0.2).
 
 walk(S, Scale) ->
     case sfmt:uniform() of
