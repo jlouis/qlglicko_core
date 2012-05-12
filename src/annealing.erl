@@ -1,8 +1,10 @@
 -module(annealing).
+-compile(inline).
+-compile({inline_size, 50}).
 
--export([anneal/0, anneal/1, anneal/2]).
+-export([anneal/0, anneal/2]).
 
--define(KMAX, 1000).
+-define(KMAX, 50).
 -define(EMAX, 0.00001).
 
 anneal() ->
@@ -96,8 +98,8 @@ temperature(boltz, T0, K) ->
     T0 / math:log(K).
 
 walk_rd(RD) -> walk(RD, 35).
-walk_sigma(Sigma) -> walk(Sigma, 0.01).
-walk_tau(Tau) -> walk(Tau, 0.2).
+walk_sigma(Sigma) -> walk(Sigma, 0.005).
+walk_tau(Tau) -> walk(Tau, 0.1).
 
 walk(S, Scale) ->
     case sfmt:uniform() of
