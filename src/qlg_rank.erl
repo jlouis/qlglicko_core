@@ -8,6 +8,7 @@
          predict/2,
          write_csv/2,
          load_tournaments/1]).
+-export([loader_looper/0]).
 
 -define(CHUNK_SIZE, 15000).
 
@@ -17,9 +18,17 @@ unload_all() ->
 load_keep() ->
     spawn(fun() ->
                   load_all(),
-                  receive stop -> done end
+                  loader_looper()
           end).
 
+loader_looper() ->
+    receive
+        stop ->
+            ok
+    after 2000 ->
+            ?MODULE:loader_looper()
+    end.
+        
 load_all() ->
     {ok, Ts} = qlg_pgsql_srv:all_tournaments(),
     load_tournaments(Ts),
@@ -59,21 +68,24 @@ init_players(Idx) ->
     {ok, S, length(S)}.
 
 rank(Idxs) ->
-    PDB = dict:new(),
-    rank(PDB, Idxs).
+    rank(Idxs, glicko2:configuration(350, 0.06, 0.5)).
 
-rank(DB, [I | Next]) ->
+rank(Idxs, Conf) ->
+    PDB = dict:new(),
+    rank(PDB, Idxs, Conf).
+
+rank(DB, [I | Next], Conf) ->
     OldPlayers = dict:fetch_keys(DB),
     {ok, Players, _L} = init_players(I),
-    NewDB = rank(DB, lists:usort(OldPlayers ++ Players), I),
-    rank(dict:from_list(NewDB), Next);
-rank(DB, []) ->
+    NewDB = rank(DB, lists:usort(OldPlayers ++ Players), I, Conf),
+    rank(dict:from_list(NewDB), Next, Conf);
+rank(DB, [], _Conf) ->
     {ok, DB}.
 
-rank(DB, [Player | Next], Idx) ->
-    Rank = rank_player(DB, Player, Idx),
-    [Rank | rank(DB, Next, Idx)];
-rank(_DB, [], _Idx) -> [].
+rank(DB, [Player | Next], Idx, Conf) ->
+    Rank = rank_player(DB, Player, Idx, Conf),
+    [Rank | rank(DB, Next, Idx, Conf)];
+rank(_DB, [], _Idx, _) -> [].
 
 predict(DB, Idx) ->
     Matches = ets:match(qlg_matches, {{Idx, {'$1', w}}, '$2'}),
@@ -96,24 +108,29 @@ player_rating(DB, P) ->
     {R, _, _} = dict:fetch(P, DB),
     R.
 
-player_ranking(DB, P) ->
+matches_played(Idx, P, Type) ->
+    length(ets:match(qlg_matches, {{Idx, {P, Type}}, '_'})).
+
+player_ranking(DB, P, Idx, Conf) ->
     case dict:find(P, DB) of
         error ->
-            {R, RD, Sigma} = gproc:get_env(l, qlglicko, default_ranking,
-                                           [app_env, error]),
-            {P, R, RD, Sigma};
+            {RD, Sigma} = glicko2:read_config(Conf),
+            R = 1500,
+            Played = matches_played(Idx, P, w) + matches_played(Idx, P, l),
+            IRD = RD / math:sqrt(Played) + 25,
+            {P, R, IRD, Sigma};
         {ok, {R, RD, Sigma}} ->
             {P, R, RD, Sigma}
     end.
 
-rank_player(Db, Player, Idx) ->
-    {Player, R, RD, Sigma} = player_ranking(Db, Player),
+rank_player(Db, Player, Idx, Conf) ->
+    {Player, R, RD, Sigma} = player_ranking(Db, Player, Idx, Conf),
         Wins = [begin
-                {_P, LR, LRD, _Sigma} = player_ranking(Db, Opp),
+                {_P, LR, LRD, _Sigma} = player_ranking(Db, Opp, Idx, Conf),
                 {LR, LRD, 1}
             end || {_, Opp} <- ets:lookup(qlg_matches, {Idx, {Player, w}})],
     Losses = [begin
-                  {_P, WR, WRD, _Sigma} = player_ranking(Db, Opp),
+                  {_P, WR, WRD, _Sigma} = player_ranking(Db, Opp, Idx, Conf),
                   {WR, WRD, 0}
               end || {_, Opp} <- ets:lookup(qlg_matches, {Idx, {Player, l}})],
     case Wins ++ Losses of
@@ -122,22 +139,10 @@ rank_player(Db, Player, Idx) ->
             {Player, {R, RD1, Sigma}};
         Opponents ->
             {R1, RD1, Sigma1} =
-                glicko2:rate(R, RD, Sigma, Opponents),
+                glicko2:rate(R, RD, Sigma, Opponents, Conf),
             {Player, {R1, RD1, Sigma1}}
 
     end.
-
-store_tournament_ranking(T) ->
-    store_tournament_ranking(T, ets:match_object(qlg_rank, '$1', ?CHUNK_SIZE)).
-
-store_tournament_ranking(T, '$end_of_table') ->
-    qlg_pgsql_srv:tournament_mark_ranked(T);
-store_tournament_ranking(T, {Matches, Continuation}) ->
-    [store_player_ranking(T, P) || P <- Matches],
-    store_tournament_ranking(T, ets:match_object(Continuation)).
-
-store_player_ranking(T, {Id, R, RD, Sigma}) ->
-    {ok, 1} = qlg_pgsql_srv:store_player_ranking(T, {Id, R, RD, Sigma}).
 
 write_csv(Fname, Db) ->
     Data =

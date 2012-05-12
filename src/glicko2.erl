@@ -1,11 +1,22 @@
 -module(glicko2).
 
+-export([configuration/3,
+         read_config/1]).
+
 -export([phi_star/2,
          glicko_test/0,
-         rate/4]).
+         rate/4, rate/5]).
 
--define(TAU, 0.5). % Good values are between 0.3 and 1.2
 -define(EPSILON, 0.000001).
+-record(config, { rd, v, tau}).
+
+configuration(IRD, IV, Tau) ->
+    #config { rd = IRD,
+              v  = IV,
+              tau = Tau }.
+
+read_config(#config { rd = RD, v = Sigma}) ->
+    {RD, Sigma}.
 
 square(V) -> V*V.
 
@@ -41,34 +52,34 @@ compute_delta(V, Opponents) ->
                    || {_Muj, _Phij, GPhij, EMMP, Sj} <- Opponents]).
 
 %% Step 5
-vol_f(Phi, V, Delta, A) ->
+vol_f(Phi, V, Delta, A, #config { tau = Tau }) ->
     PHI2 = Phi*Phi,
     fun(X) ->
             EX = math:exp(X),
             D2 = Delta*Delta,
             A2 = (PHI2 + V + EX),
-            P2 = (X - A) / (?TAU * ?TAU),
+            P2 = (X - A) / (Tau * Tau),
             P1 = (EX * (D2 - PHI2 - V - EX))  / (2*A2*A2),
             P1 - P2
     end.
 
-vol_k(K, F, A) ->
-    Const = A - K*math:sqrt(?TAU*?TAU),
+vol_k(K, F, A, #config { tau = Tau} = Conf) ->
+    Const = A - K*math:sqrt(Tau*Tau),
     case F(Const) < 0 of
         true ->
-            vol_k(K+1, F, A);
+            vol_k(K+1, F, A, Conf);
         false ->
             Const
     end.
 
-compute_volatility(Sigma, Phi, V, Delta) ->
+i_compute_volatility(Sigma, Phi, V, Delta, Conf) ->
     A = math:log(Sigma*Sigma),
-    F = vol_f(Phi, V, Delta, A),
+    F = vol_f(Phi, V, Delta, A, Conf),
     B = case Delta*Delta > Phi*Phi + V of
             true ->
                 math:log(Delta*Delta - Phi*Phi - V);
             false ->
-                vol_k(1, F, A)
+                vol_k(1, F, A, Conf)
         end,
     FA = F(A),
     FB = F(B),
@@ -109,11 +120,14 @@ unscale(MuP, PhiP) ->
     {RP, RDP}.
 
 rate(R, RD, Sigma, Opponents) ->
+    rate(R, RD, Sigma, Opponents, configuration(350, 0.06, 0.5)).
+
+rate(R, RD, Sigma, Opponents, Conf) ->
     {Mu, Phi} = scale(R, RD),
     ScaledOpponents = scale_opponents(Mu, Opponents),
     V = update_rating(ScaledOpponents),
     Delta = compute_delta(V, ScaledOpponents),
-    SigmaP = compute_volatility(Sigma, Phi, V, Delta),
+    SigmaP = i_compute_volatility(Sigma, Phi, V, Delta, Conf),
     PhiStar = phi_star(SigmaP, Phi),
     {MuP, PhiP} = new_rating(PhiStar, Mu, V, ScaledOpponents),
     {R1, RD1} = unscale(MuP, PhiP),
@@ -144,7 +158,7 @@ glicko_test() ->
     1.7789770897239976 = V,
     Delta = compute_delta(V, ScaledOpponents),
     -0.4839332609836549 = Delta,
-    SigmaP = compute_volatility(Sigma, Phi, V, Delta),
+    SigmaP = i_compute_volatility(Sigma, Phi, V, Delta, configuration(350, 0.06, 0.5)),
     0.059995984286488495 = SigmaP,
     PhiStar = phi_star(SigmaP, Phi),
     1.1528546895801364 = PhiStar,

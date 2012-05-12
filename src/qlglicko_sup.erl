@@ -24,8 +24,6 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    {ok, DispatchInfo}
-        = dispcount:dispatcher_info(qlg_db_dispatcher),
     OverloadDetect =
         {qlg_overload, {qlg_overload, start_link, []},
          permanent, 5000, worker, [qlg_overload]},
@@ -41,9 +39,6 @@ init([]) ->
     MatchAnalyzer =
         {qlg_match_analyzer, {qlg_match_analyzer, start_link, []},
          permanent, 5000, worker, [qlg_match_analyzer]},
-    Ranker =
-        {qlg_ranker, {qlg_ranker, start_link, [DispatchInfo]},
-         permanent, 5000, worker, [qlg_ranker]},
     %% Timer =
     %%     {qlglicko_timer, {qlglicko_timer, start_link, []},
     %%      permanent, 5000, worker, [qlglicko_timer]},
@@ -51,7 +46,6 @@ init([]) ->
                                     FetchPlayerPool,
                                     FetchMatchPool,
                                     PgsqlSrv,
-                                    MatchAnalyzer,
-                                    Ranker]} }.
+                                    MatchAnalyzer]} }.
 
 
