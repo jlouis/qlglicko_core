@@ -114,11 +114,11 @@ matches_played(Idx, P, Type) ->
 player_ranking(DB, P, Idx, Conf) ->
     case dict:find(P, DB) of
         error ->
-            {RD, Sigma} = glicko2:read_config(Conf),
+            {RD, Sigma, _} = glicko2:read_config(Conf),
             R = 1500,
-            Played = matches_played(Idx, P, w) + matches_played(Idx, P, l),
-            IRD = RD / math:sqrt(Played) + 25,
-            {P, R, IRD, Sigma};
+            %Played = matches_played(Idx, P, w) + matches_played(Idx, P, l),
+            %IRD = RD / math:sqrt(Played) + 25,
+            {P, R, RD, Sigma};
         {ok, {R, RD, Sigma}} ->
             {P, R, RD, Sigma}
     end.
