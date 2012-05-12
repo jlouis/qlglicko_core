@@ -140,9 +140,12 @@ rank_player(Db, Player, Idx, Conf) ->
         Opponents ->
             {R1, RD1, Sigma1} =
                 glicko2:rate(R, RD, Sigma, Opponents, Conf),
-            {Player, {R1, RD1, Sigma1}}
-
+            {Player, {clamp(0, R1, 3000), RD1, Sigma1}}
     end.
+
+clamp(Lo, X, _ ) when X < Lo -> Lo;
+clamp(_,  X, Hi) when X > Hi -> Hi;
+clamp(_,  X, _ ) -> X.
 
 write_csv(Fname, Db) ->
     Data =
