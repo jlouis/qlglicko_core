@@ -15,8 +15,8 @@ configuration(IRD, IV, Tau) ->
               v  = IV,
               tau = Tau }.
 
-read_config(#config { rd = RD, v = Sigma}) ->
-    {RD, Sigma}.
+read_config(#config { rd = RD, v = Sigma, tau = Tau}) ->
+    {RD, Sigma, Tau}.
 
 square(V) -> V*V.
 
