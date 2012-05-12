@@ -2,8 +2,11 @@
 
 -export([rank/1, rank/2, rank/3,
          init_players/0,
+         load_keep/0,
          load_all/0,
          unload_all/0,
+         predict/2,
+         write_csv/2,
          load_tournaments/1]).
 
 -define(CHUNK_SIZE, 15000).
@@ -11,10 +14,24 @@
 unload_all() ->
     ets:delete(qlg_matches).
 
+load_keep() ->
+    spawn(fun() ->
+                  load_all(),
+                  receive stop -> done end
+          end).
+
 load_all() ->
     {ok, Ts} = qlg_pgsql_srv:all_tournaments(),
     load_tournaments(Ts),
-    {ok, ets:info(qlg_matches, size)}.
+    {ok, Players} = qlg_pgsql_srv:all_players(),
+    load_players(Players),
+    {ok, ets:info(qlg_matches, size), ets:info(qlg_players, size)}.
+
+load_players(Players) ->
+    ets:new(qlg_players, [named_table, public, {read_concurrency, true},
+                          set]),
+    [ets:insert(qlg_players, {Id, Name}) || {Id, Name} <- Players],
+    ok.
 
 load_tournaments(Ts) ->
     ets:new(qlg_matches,
@@ -56,7 +73,28 @@ rank(DB, []) ->
 rank(DB, [Player | Next], Idx) ->
     Rank = rank_player(DB, Player, Idx),
     [Rank | rank(DB, Next, Idx)];
-rank(DB, [], _Idx) -> [].
+rank(_DB, [], _Idx) -> [].
+
+predict(DB, Idx) ->
+    Matches = ets:match(qlg_matches, {{Idx, {'$1', w}}, '$2'}),
+    {Predicted, Total} = predict_matches(DB, Matches, 0, 0),
+    {Predicted, Total, (Predicted / Total) * 100}.
+
+predict_matches(_DB, [], Predicted, Total) ->
+    {Predicted, Total};
+predict_matches(DB, [[Winner, Loser] | Next], Predicted, Total) ->
+    K = try player_rating(DB, Winner) > player_rating(DB, Loser) of
+            true -> 1;
+            false -> 0
+        catch
+            error:badarg ->
+                0
+        end,
+    predict_matches(DB, Next, Predicted + K, Total + 1).
+
+player_rating(DB, P) ->
+    {R, _, _} = dict:fetch(P, DB),
+    R.
 
 player_ranking(DB, P) ->
     case dict:find(P, DB) of
@@ -101,16 +139,16 @@ store_tournament_ranking(T, {Matches, Continuation}) ->
 store_player_ranking(T, {Id, R, RD, Sigma}) ->
     {ok, 1} = qlg_pgsql_srv:store_player_ranking(T, {Id, R, RD, Sigma}).
 
-write_csv() ->
-    Ratings = ets:match_object(qlg_rank, '$1'),
-    IoData = ["Player,R,RD,Sigma", $\n,
-              [[format_player(R), $\n] || R <- Ratings]],
-    file:write_file("rankings.csv", IoData).
+write_csv(Fname, Db) ->
+    Data =
+        dict:fold(fun(Id, Ranking, Acc) ->
+                          [format_player(Id, Ranking), $\n | Acc]
+                  end,
+                  [], Db),
+    file:write_file(Fname, [["Player,R,RD,Sigma", $\n] | Data]).
 
-format_player({P, R, Rd, S}) ->
-    Name = qlg_pgsql_srv:fetch_player_name(P),
-    [Name, $,,
-     float_to_list(R), $,,
-     float_to_list(Rd), $,,
-     float_to_list(S)].
+
+format_player(Id, {R, Rd, S}) ->
+    [{Id, Name}] = ets:lookup(qlg_players, Id),
+    [Name, $,, float_to_list(R), $,, float_to_list(Rd), $,, float_to_list(S)].
 
