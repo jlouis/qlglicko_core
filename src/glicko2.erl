@@ -73,7 +73,7 @@ vol_k(K, F, A, #config { tau = Tau} = Conf) ->
             Const
     end.
 
-i_compute_volatility(Sigma, Phi, V, Delta, Conf) ->
+i_compute_volatility(Sigma, Phi, V, Delta, #config { tau = Tau } = Conf) ->
     A = math:log(Sigma*Sigma),
     F = vol_f(Phi, V, Delta, A, Conf),
     B = case Delta*Delta > Phi*Phi + V of
@@ -87,10 +87,8 @@ i_compute_volatility(Sigma, Phi, V, Delta, Conf) ->
     try
         compute_volatility(A, B, F, FA, FB, 100)
     catch
-        throw:{iterations_exceeded, Vals} ->
-            lager:error("Error in vol comp: ~p", [[{sigma, Sigma}, {phi, Phi},
-                                                   {delta, Delta}, {conf, Conf},
-                                                   {values, Vals} ]]),
+        throw:{iterations_exceeded, _Vals} ->
+            lager:error("Error in vol comp: ~p", [{Sigma, Phi, V, Delta, Tau}]),
             exit(bad_vol_comp)
     end.
 
