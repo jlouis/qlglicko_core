@@ -5,6 +5,7 @@
 
 -export([phi_star/2,
          glicko_test/0,
+         glicko_test2/0,
          rate/4, rate/5]).
 
 -define(EPSILON, 0.000001).
@@ -83,11 +84,21 @@ i_compute_volatility(Sigma, Phi, V, Delta, Conf) ->
         end,
     FA = F(A),
     FB = F(B),
-    compute_volatility(A, B, F, FA, FB).
+    try
+        compute_volatility(A, B, F, FA, FB, 100)
+    catch
+        throw:{iterations_exceeded, Vals} ->
+            lager:error("Error in vol comp: ~p", [[{sigma, Sigma}, {phi, Phi},
+                                                   {delta, Delta}, {conf, Conf},
+                                                   {values, Vals} ]]),
+            exit(bad_vol_comp)
+    end.
 
-compute_volatility(A, B, _F, _FA, _FB) when abs(B - A) < ?EPSILON ->
+compute_volatility(A, B, F, FA, FB, 0) ->
+    throw({iterations_exceeded, {A, B, F, FA, FB}});
+compute_volatility(A, B, _F, _FA, _FB, _) when abs(B - A) =< ?EPSILON ->
     math:exp(A/2);
-compute_volatility(A, B, F, FA, FB) ->
+compute_volatility(A, B, F, FA, FB, K) ->
     C = A + (A - B)*FA / (FB - FA),
     FC = F(C),
     {NA, NFA} =
@@ -97,7 +108,7 @@ compute_volatility(A, B, F, FA, FB) ->
             false ->
                 {A, FA / 2}
         end,
-    compute_volatility(NA, C, F, NFA, FC).
+    compute_volatility(NA, C, F, NFA, FC, K-1).
             
 %% Step 6
 phi_star(SigmaP, Phi) ->
@@ -166,4 +177,13 @@ glicko_test() ->
     {-0.20694096667525494, 0.8721991881307343} = {MuP, PhiP},
     {R1, RD1} = unscale(MuP, PhiP),
     {1464.0506705393013, 151.51652412385727} = {R1, RD1}.
+
+glicko_test2() ->
+    V = 1.7785,
+    Delta = -0.4834,
+    Tau = 0.5,
+    Sigma = 0.06,
+    Phi = 200 / 173.7178,
+    SigmaP = i_compute_volatility(Sigma, Phi, V, Delta, configuration(350, 0.06, Tau)),
+    SigmaP.
 
