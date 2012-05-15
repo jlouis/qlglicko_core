@@ -33,27 +33,27 @@ controller(S0, K) ->
                        end) || _ <- lists:seq(1,K)],
     controller_loop(Pids, S0, e(S0), 0).
 
-controller_loop([], IS, IE, _) ->
-    {IS, IE};
+controller_loop([], IS, IE, _) -> {IS, IE};
 controller_loop(Pids, IS, IE, K) when is_list(Pids) ->
     receive
         {new_incumbent, SB, EB} when IE > EB ->
             io:format("Improved incumbent: ~p Energy: ~p~n", [SB, EB]),
             [P ! {new_incumbent, SB, EB} || P <- Pids],
             controller_loop(Pids, SB, EB, K);
-        {new_incumbent, _SB, _EB}            ->
-            controller_loop(Pids, IS, IE, K);
-        {done, Pid}                          ->
-            controller_loop(Pids -- [Pid], IS, IE, K);
+        {new_incumbent, _SB, _EB}            -> controller_loop(Pids, IS, IE, K);
+        {done, Pid}                          -> controller_loop(Pids -- [Pid], IS, IE, K);
         inc when (K rem 10) == 0 -> io:format("~B", [K]),
                                     controller_loop(Pids, IS, IE, K+1);
         inc -> io:format("."),
                controller_loop(Pids, IS, IE, K+1)
     end.
 
+iterate(0, _F, S) -> S;
+iterate(N, F, S) -> iterate(N-1, F, F(S)).
+
 anneal_worker(Ctl, S0) ->
     sfmt:seed(os:timestamp()),
-    S = S0,
+    S = iterate(10, fun neighbour/1, S0),
     E = e(S),
     anneal_check(Ctl, S, E, S, E, 0).
 
@@ -73,11 +73,9 @@ anneal(Ctl, S, E, SB, EB, K) when K < ?KMAX, E > ?EMAX ->
                              false -> {S, E}
                          end,
         {NextSB, NextEB} = case EN < EB of
-                               true  ->
-                                   Ctl ! {new_incumbent, SN, EN},
-                                   {SN, EN};
-                               false ->
-                                   {SB, EB}
+                               true  -> Ctl ! {new_incumbent, SN, EN},
+                                        {SN, EN};
+                               false -> {SB, EB}
                            end,
         anneal_check(Ctl, NextS, NextE, NextSB, NextEB, K+1)
     catch
@@ -87,26 +85,20 @@ anneal(Ctl, S, E, SB, EB, K) when K < ?KMAX, E > ?EMAX ->
     end;
 anneal(Ctl, _, _, _, _, _) -> Ctl ! {done, self()}.
 
-temperature(T0, K) ->
-    temperature(exp, T0, K).
+temperature(T0, K) -> temperature(exp, T0, K).
 
-temperature(exp, T0, K) ->
-    T0 * math:pow(0.995, K);
-temperature(fast, T0, K) ->
-    T0 / K;
-temperature(boltz, T0, K) ->
-    T0 / math:log(K).
+temperature(exp, T0, K) -> T0 * math:pow(0.995, K);
+temperature(fast, T0, K) -> T0 / K;
+temperature(boltz, T0, K) -> T0 / math:log(K).
 
-walk_rd(RD) -> walk(RD, 35).
-walk_sigma(Sigma) -> walk(Sigma, 0.005).
-walk_tau(Tau) -> walk(Tau, 0.1).
+walk_rd(RD) -> walk(RD, 100).
+walk_sigma(Sigma) -> walk(Sigma, 0.008).
+walk_tau(Tau) -> walk(Tau, 0.2).
 
 walk(S, Scale) ->
     case sfmt:uniform() of
-        K when K > 0.5 ->
-            S+(sfmt:uniform() * Scale);
-        _ ->
-            S-(sfmt:uniform() * Scale)
+        K when K > 0.5 -> S+(sfmt:uniform() * Scale);
+        _ -> S-(sfmt:uniform() * Scale)
     end.
 
 clamp(Lo, _Hi, X) when X < Lo -> Lo;
@@ -116,8 +108,8 @@ clamp(_, _, X)                -> X.
 neighbour(S) ->
     {RD, Sigma, Tau} = glicko2:read_config(S),
     Cnf = glicko2:configuration(
-            clamp(50, 350, walk_rd(RD)),
-            clamp(0.05, 0.07, walk_sigma(Sigma)),
+            clamp(15, 450, walk_rd(RD)),
+            clamp(0.03, 0.08, walk_sigma(Sigma)),
             clamp(0.3, 1.2, walk_tau(Tau))),
     Cnf.
 
@@ -125,8 +117,6 @@ p(E, NewE, _T) when NewE < E -> 1.0;
 p(E, NewE, T ) -> math:exp((E - NewE) / T).
 
 e(S) ->
-    {ok, Db} = qlg_rank:rank([1,2,3,4,5,6], S),
-    {_, _, V} = qlg_rank:predict(Db, 7),
+    {ok, Db} = qlg_rank:rank(lists:seq(1,12), S),
+    {_, _, V} = qlg_rank:predict(Db, 13),
     100 - V.
-    %% PR = qlglicko:predict(S),
-    %% 1.0 - PR.
