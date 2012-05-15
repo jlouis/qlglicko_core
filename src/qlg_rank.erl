@@ -6,6 +6,8 @@
          load_all/0,
          unload_all/0,
          predict/2,
+         rate_game/2,
+         expected_score/4,
          write_csv/2,
          load_tournaments/1]).
 -export([loader_looper/0]).
@@ -89,29 +91,39 @@ rank(_DB, [], _Idx, _) -> [].
 
 predict(DB, Idx) ->
     Matches = ets:match(qlg_matches, {{Idx, {'$1', w}}, '$2'}),
-    {Predicted, Total} = predict_matches(DB, Matches, 0, 0),
-    {Predicted, Total, (Predicted / Total) * 100}.
+    Predicted = predict_matches(DB, Matches),
+    lists:sum(Predicted) / length(Predicted).
 
-predict_matches(_DB, [], Predicted, Total) ->
-    {Predicted, Total};
-predict_matches(DB, [[Winner, Loser] | Next], Predicted, Total) ->
-    K = try player_rating(DB, Winner) > player_rating(DB, Loser) of
-            true -> 1;
-            false -> 0
-        catch
-            error:badarg ->
-                0
-        end,
-    predict_matches(DB, Next, Predicted + K, Total + 1).
+rate_game(Y, E) ->
+    -(Y * math:log10(E) + (1 - Y)*math:log10(1-E)).
+
+q() ->
+    math:log(10) / 400.
+
+expected_g(RD) ->
+    1 / (math:sqrt(1 + 3*q()*q()*RD*RD/(math:pi()*math:pi()))).
+
+expected_score(WR, WRD, LR, LRD) ->
+    GVal = expected_g(math:sqrt(WRD*WRD + LRD*LRD)),
+    1 / (1 + math:pow(10, -GVal * (WR - LR) / 400)).
+
+predict_matches(_Db, []) -> [];
+predict_matches(Db, [[Winner, Loser] | Next]) ->
+    try
+        {WR, WRD} = player_rating(Db, Winner),
+        {LR, LRD} = player_rating(Db, Loser),
+        E = expected_score(WR, WRD, LR, LRD),
+        [rate_game(1, E) | predict_matches(Db, Next)]
+    catch
+        _:_ ->
+            predict_matches(Db, Next)
+    end.
 
 player_rating(DB, P) ->
-    {R, _, _} = dict:fetch(P, DB),
-    R.
+    {R, RD, _} = dict:fetch(P, DB),
+    {R, RD}.
 
-matches_played(Idx, P, Type) ->
-    length(ets:match(qlg_matches, {{Idx, {P, Type}}, '_'})).
-
-player_ranking(DB, P, Idx, Conf) ->
+player_ranking(DB, P, _Idx, Conf) ->
     case dict:find(P, DB) of
         error ->
             {RD, Sigma, _} = glicko2:read_config(Conf),
@@ -140,7 +152,7 @@ rank_player(Db, Player, Idx, Conf) ->
         Opponents ->
             {R1, RD1, Sigma1} =
                 glicko2:rate(R, RD, Sigma, Opponents, Conf),
-            {Player, {clamp(0, R1, 3000), RD1, Sigma1}}
+            {Player, {clamp(0.0, R1, 3000.0), RD1, Sigma1}}
     end.
 
 clamp(Lo, X, _ ) when X < Lo -> Lo;
