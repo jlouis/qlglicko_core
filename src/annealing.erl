@@ -5,7 +5,7 @@
 -export([anneal/0, anneal/2]).
 
 -define(KMAX, 50).
--define(EMAX, 0.00001).
+-define(EMAX, 0.000000000001).
 
 anneal() ->
     S0 = glicko2:configuration(200, 0.06, 0.45),
@@ -118,5 +118,5 @@ p(E, NewE, T ) -> math:exp((E - NewE) / T).
 
 e(S) ->
     {ok, Db} = qlg_rank:rank(lists:seq(1,12), S),
-    {_, _, V} = qlg_rank:predict(Db, 13),
-    100 - V.
+    qlg_rank:predict(Db, 13).
+
