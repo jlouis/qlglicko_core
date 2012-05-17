@@ -92,22 +92,32 @@ i_compute_volatility(Sigma, Phi, V, Delta, #config { tau = Tau } = Conf) ->
             exit(bad_vol_comp)
     end.
 
+sign(X) when X > 0 -> 1;
+sign(X) when X < 0 -> -1;
+sign(0.0)          ->  0.
+
 compute_volatility(A, B, F, FA, FB, 0) ->
     throw({iterations_exceeded, {A, B, F, FA, FB}});
 compute_volatility(A, B, _F, _FA, _FB, _) when abs(B - A) =< ?EPSILON ->
     math:exp(A/2);
 compute_volatility(A, B, F, FA, FB, K) ->
-    C = A + (A - B)*FA / (FB - FA),
-    FC = F(C),
-    {NA, NFA} =
-        case FC * FB < 0 of
-            true ->
-                {B, FB};
-            false ->
-                {A, FA / 2}
-        end,
-    compute_volatility(NA, C, F, NFA, FC, K-1).
-            
+    %% C is the midpoint:
+    C = (A + B) * 0.5, FC = F(C),
+    D = C + (C - A) * (sign(FA - FB) * FC) / math:sqrt(FC*FC - FA*FB),
+    FD = F(D),
+    case sign(FD) /= sign(FC) of
+        true ->
+            compute_volatility(C, D, F, FC, FD, K-1);
+        false ->
+            case sign(FD) /= sign(FA) of
+                true ->
+                    compute_volatility(A, D, F, FA, FD, K-1);
+                false ->
+                    true = sign(FD) /= sign(FB),
+                    compute_volatility(D, B, F, FD, FB, K-1)
+            end
+    end.
+
 %% Step 6
 phi_star(SigmaP, Phi) ->
     math:sqrt(square(Phi) + square(SigmaP)).
