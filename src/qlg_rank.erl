@@ -7,12 +7,39 @@
          unload_all/0,
          predict/2,
          rate_game/2,
-         expected_score/4,
+         expected_score/3, expected_score/4,
          write_csv/2,
+         matrix/3,
+         ps/0,
          load_tournaments/1]).
 -export([loader_looper/0]).
 
 -define(CHUNK_SIZE, 15000).
+
+ps() ->
+    [P || P <- ["Raziel2p",
+                "danielvegas",
+                "cozmic",
+                "CrazyAl90",
+                "beffy",
+                "KillaloT",
+                "pb",
+                "ollir",
+                "Nikkezhu",
+                "bezoeker",
+                "kristus",
+                "QuadmanSWE",
+                "Relativizor",
+                "Cooller"],
+          is_player(iolist_to_binary(P))].
+
+is_player(P) ->
+    case ets:match(qlg_players, {'$1', P}) of
+        [] ->
+            false;
+        [_ | _] ->
+            true
+    end.
 
 unload_all() ->
     ets:delete(qlg_matches).
@@ -103,6 +130,24 @@ q() ->
 expected_g(RD) ->
     1 / (math:sqrt(1 + 3*q()*q()*RD*RD/(math:pi()*math:pi()))).
 
+commatize([]) -> [];
+commatize([E]) -> [E];
+commatize([A| Rest]) -> [A, $,, commatize(Rest)].
+
+matrix(Db, Players, Fname) ->
+    Bins = [iolist_to_binary(P) || P <- Players],
+    Matrix = [[P1, commatize([io_lib:format("~6.2. f", [expected_score(Db, P1, Opponent)]) || Opponent <- Bins]), $\n] || P1 <- Bins],
+    Header = [$ , $, , commatize(Players), $\n],
+    Data = [Header | [commatize(L) || L <- Matrix]],
+    file:write_file(Fname, Data).
+
+expected_score(Db, P1, P2) ->
+    [[Id1]] = ets:match(qlg_players, {'$1', P1}),
+    [[Id2]] = ets:match(qlg_players, {'$1', P2}),
+    {R1, RD1} = player_rating(Db, Id1),
+    {R2, RD2} = player_rating(Db, Id2),
+    expected_score(R1, RD1, R2, RD2).
+
 expected_score(WR, WRD, LR, LRD) ->
     GVal = expected_g(math:sqrt(WRD*WRD + LRD*LRD)),
     1 / (1 + math:pow(10, -GVal * (WR - LR) / 400)).
@@ -152,7 +197,9 @@ rank_player(Db, Player, Idx, Conf) ->
         Opponents ->
             {R1, RD1, Sigma1} =
                 glicko2:rate(R, RD, Sigma, Opponents, Conf),
-            {Player, {clamp(0.0, R1, 3000.0), RD1, Sigma1}}
+            {Player, {clamp(0.0, R1, 3000.0),
+                      clamp(0.0, RD1, 400.0),
+                      clamp(0.0, Sigma1, 0.1)}}
     end.
 
 clamp(Lo, X, _ ) when X < Lo -> Lo;
