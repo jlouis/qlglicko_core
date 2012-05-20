@@ -4,7 +4,7 @@
 
 %% API
 -export([start_link/0]).
--export([fetch_player/2]).
+-export([fetch_player/3]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -18,8 +18,8 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-fetch_player(Id, Name) ->
-    gen_server:cast(?MODULE, {fetch_player, Id, Name}).
+fetch_player(Id, Name, Age) ->
+    gen_server:cast(?MODULE, {fetch_player, Id, Name, Age}).
 
 %%%===================================================================
 
@@ -34,8 +34,8 @@ handle_call(_Request, _From, State) ->
     {reply, Reply, State}.
 
 %% @private
-handle_cast({fetch_player, Id, Name}, State) ->
-    qlg_fetch_player_pool:fetch_player(Id, Name),
+handle_cast({fetch_player, Id, Name, Age}, State) ->
+    qlg_fetch_player_pool:fetch_player(Id, Name, Age),
     {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -71,8 +71,8 @@ refill_players() ->
     {ok, _, Players} =
         qlg_pgsql_srv:players_to_refresh(),
     lager:debug("Submitting ~B player fetch jobs", [length(Players)]),
-    [qlg_fetch_player_pool:fetch_player(Id, binary_to_list(Name))
-     || {Id, Name} <- Players],
+    [qlg_fetch_player_pool:fetch_player(Id, binary_to_list(Name), Age)
+     || {Id, Name, Age} <- Players],
     ok.
 
 refill_matches() ->

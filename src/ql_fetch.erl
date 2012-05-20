@@ -1,11 +1,25 @@
 %%% @doc Fetch statistics off of the QuakeLive homepage
 -module(ql_fetch).
 
--export([player_matches/1,
+-export([player_matches/2,
          match/1]).
 
-player_matches(Player) when is_list(Player) ->
-    URL = week_matches_url(Player, calendar:universal_time()),
+player_matches(Player, Weeks) ->
+    player_matches(Player, Weeks, []).
+
+player_matches(_Player, [], Matches) ->
+    {ok, Matches};
+player_matches(Player, [Week | NextWeek], Acc) ->
+    case request_player_matches(Player, Week) of
+        {ok, Body} ->
+            Matches = parse_matches(Body),
+            player_matches(Player, NextWeek, Matches ++ Acc);
+        {error, Reason} ->
+            {error, Reason}
+    end.
+
+request_player_matches(Player, Week) when is_list(Player) ->
+    URL = week_matches_url(Player, Week),
     case request(URL) of
         {ok, Body} ->
             {ok, parse_matches(Body)};
@@ -38,7 +52,7 @@ match_url(Match) when is_binary(Match) ->
       ["http://www.quakelive.com/stats/matchdetails",
        binary_to_list(Match)], "/").
 
-week_matches_url(Player, {{YYYY, MM, DD}, _}) ->
+week_matches_url(Player, {YYYY, MM, DD}) ->
     Base = "http://www.quakelive.com/profile/matches_by_week",
     WeekStr = io_lib:format("~B-~2..0B-~2..0B", [YYYY, MM, DD]),
     string:join([Base, Player, lists:flatten(WeekStr)], "/").

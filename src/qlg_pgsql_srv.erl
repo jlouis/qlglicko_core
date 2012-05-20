@@ -334,7 +334,8 @@ ex_matches_to_fetch(C) ->
     pgsql:equery(C, "SELECT id FROM matches_to_refresh LIMIT 66").
 
 ex_players_to_refresh(C) ->
-    pgsql:equery(C, "SELECT id,name FROM players_to_update LIMIT 66").
+    pgsql:equery(C, "SELECT id,name,age_days FROM players_to_update "
+                    "ORDER BY age_days DESC LIMIT 66").
 
 ex_select_player(C, Name) ->
     pgsql:equery(C, "SELECT id,name FROM player WHERE name = $1",
@@ -380,7 +381,7 @@ ex_store_match(C, Id, B) when is_binary(B) ->
 ex_should_player_be_refreshed(C, Name) ->
     case pgsql:equery(
            C,
-           "SELECT id FROM players_to_update WHERE id = $1", [Name]) of
+           "SELECT id, lastupdate FROM players_to_update WHERE id = $1", [Name]) of
         {ok, _, []} ->
             false;
         {ok, _, [_|_]} ->
