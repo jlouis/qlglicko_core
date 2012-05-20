@@ -13,6 +13,9 @@ player_matches(Player, [Week | NextWeek], Acc) ->
     case request_player_matches(Player, Week) of
         {ok, Body} ->
             Matches = parse_matches(Body),
+            lager:debug("Fetched - Player: ~s, Week: ~p: ~B",
+                        [Player, Week, length(Matches)]),
+            timer:sleep(3000), % Wait a bit before fetching next week
             player_matches(Player, NextWeek, Matches ++ Acc);
         {error, Reason} ->
             {error, Reason}
