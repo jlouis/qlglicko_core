@@ -39,13 +39,14 @@ init([]) ->
     MatchAnalyzer =
         {qlg_match_analyzer, {qlg_match_analyzer, start_link, []},
          permanent, 5000, worker, [qlg_match_analyzer]},
-    %% Timer =
-    %%     {qlglicko_timer, {qlglicko_timer, start_link, []},
-    %%      permanent, 5000, worker, [qlglicko_timer]},
+    Timer =
+        {qlglicko_timer, {qlglicko_timer, start_link, []},
+         permanent, 5000, worker, [qlglicko_timer]},
     {ok, { {one_for_all, 3, 3600}, [OverloadDetect,
                                     FetchPlayerPool,
                                     FetchMatchPool,
                                     PgsqlSrv,
-                                    MatchAnalyzer]} }.
+                                    MatchAnalyzer,
+                                    Timer]} }.
 
 
