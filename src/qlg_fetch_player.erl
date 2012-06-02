@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/2, run/1]).
+-export([start_link/3, run/1]).
 -export([find_weeks/1]).
 
 %% gen_server callbacks
@@ -18,8 +18,8 @@
 
 %%%===================================================================
 
-start_link(Id, Name) ->
-    gen_server:start_link(?MODULE, [Id, Name], []).
+start_link(Id, Name, Age) ->
+    gen_server:start_link(?MODULE, [Id, Name, Age], []).
 
 run(Pid) ->
     gen_server:cast(Pid, run).
