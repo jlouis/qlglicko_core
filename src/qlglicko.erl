@@ -1,6 +1,11 @@
 -module(qlglicko).
 
 -export([rank/1, rank/2, rank_aux/1]).
+-export([fetch_match/1]).
+
+fetch_match(Id) ->
+    {ok, M} = qlg_pgsql_srv:fetch_match(Id),
+    binary_to_term(M).
 
 rank(Id) ->
     rank(Id, []).
