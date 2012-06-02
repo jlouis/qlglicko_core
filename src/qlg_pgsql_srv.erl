@@ -269,7 +269,7 @@ ex_fetch_match(C, Id) ->
 ex_matches_to_analyze(C) ->
     pgsql:equery(
       C,
-      "SELECT id FROM matches_to_analyze LIMIT 9999").
+      "SELECT id FROM matches_to_analyze LIMIT 6000").
 
 ex_all_tournaments(C) ->
     {ok, _, Tournaments} =
