@@ -53,7 +53,7 @@ start_link() ->
 
 db_connect() ->
     {Host, Name, PW, DB} =
-        gproc:get_env(l, qlglicko, postgres, [app_env, error]),
+        gproc:get_env(l, qlglicko_core, postgres, [app_env, error]),
     pgsql:connect(Host, Name, PW, [{database, DB}]).
 
 call(Msg) ->

@@ -19,5 +19,5 @@ stop(_State) ->
 
 %% ----------------------------------------------------------------------
 read_configuration() ->
-    gproc:get_set_env(l, qlglicko, postgres, [app_env, error]),
+    gproc:get_set_env(l, qlglicko_core, postgres, [app_env, error]),
     ok.
