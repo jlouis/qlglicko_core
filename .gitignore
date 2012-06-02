@@ -1,0 +1,3 @@
+*.beam
+
+/ebin/qlglicko_core.app
