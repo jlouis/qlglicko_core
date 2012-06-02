@@ -57,31 +57,31 @@ db_connect() ->
     pgsql:connect(Host, Name, PW, [{database, DB}]).
 
 call(Msg) ->
-    gen_server:call(?MODULE, Msg, 60000).
+    gen_server:call(?MODULE, Msg, timer:minutes(2)).
 
 all_players() ->
-    gen_server:call(?MODULE, all_players).
+    call(all_players).
 
 all_tournaments() ->
-    gen_server:call(?MODULE, all_tournaments).
+    call(all_tournaments).
 
 fetch_match(Id) ->
-    gen_server:call(?MODULE, {fetch_match, Id}).
+    call({fetch_match, Id}).
 
 mk_player(Name) ->
-    gen_server:call(?MODULE, {mk_player, Name}).
+    call({mk_player, Name}).
 
 select_player(Name) ->
-    gen_server:call(?MODULE, {select_player, Name}).
+    call({select_player, Name}).
 
 matches_to_analyze() ->
-    gen_server:call(?MODULE, matches_to_analyze, 30*1000).
+    call(matches_to_analyze).
 
 mark_analyzed(Id) ->
-    gen_server:call(?MODULE, {mark_analyzed, Id}).
+    call({mark_analyzed, Id}).
 
 players_to_refresh() ->
-    gen_server:call(?MODULE, players_to_refresh).
+    call(players_to_refresh).
 
 should_match_be_updated(Id) ->
     call({should_match_be_updated, Id}).
@@ -96,25 +96,25 @@ store_player_ranking(T, PI) ->
     call({store_player_ranking, T, PI}).
 
 matches_to_fetch() ->
-    gen_server:call(?MODULE, matches_to_fetch).
+    call(matches_to_fetch).
 
 refresh_player(Id) ->
-    gen_server:call(?MODULE, {refresh_player, Id}).
+    call({refresh_player, Id}).
 
 fetch_player_name(Id) ->
-    gen_server:call(?MODULE, {fetch_player_name, Id}).
+    call({fetch_player_name, Id}).
 
 fetch_player_rating(C, P) ->
     ex_fetch_player_rating(C, P).
 
 fetch_player_rating(P) ->
-    gen_server:call(?MODULE, {fetch_player_rating, P}).
+    call({fetch_player_rating, P}).
 
 fetch_wins(C, P, T) ->
     ex_fetch_wins(C, P, T).
 
 fetch_wins(P, T) ->
-    gen_server:call(?MODULE, {fetch_wins, P, T}).
+    call({fetch_wins, P, T}).
 
 fetch_losses(C, P, T) ->
     ex_fetch_losses(C, P, T).
@@ -123,16 +123,16 @@ tournament_mark_ranked(T) ->
     call({tournament_mark_ranked, T}).
 
 fetch_losses(P, T) ->
-    gen_server:call(?MODULE, {fetch_losses, P, T}).
+    call({fetch_losses, P, T}).
 
 store_match(Id, Blob) when Blob == null;
                            is_binary(Blob) ->
-    gen_server:call(?MODULE, {store_match, Id, Blob});
+    call({store_match, Id, Blob});
 store_match(Id, #duel_match{} = DM) ->
-    gen_server:call(?MODULE, {store_duel_match, Id, DM}).
+    call({store_duel_match, Id, DM}).
 
 players_in_tournament(T) ->
-    gen_server:call(?MODULE, {players_in_tournament, T}).
+    call({players_in_tournament, T}).
 
 %%%===================================================================
 
