@@ -75,7 +75,7 @@ select_player(Name) ->
     gen_server:call(?MODULE, {select_player, Name}).
 
 matches_to_analyze() ->
-    gen_server:call(?MODULE, matches_to_analyze).
+    gen_server:call(?MODULE, matches_to_analyze, 30*1000).
 
 mark_analyzed(Id) ->
     gen_server:call(?MODULE, {mark_analyzed, Id}).
