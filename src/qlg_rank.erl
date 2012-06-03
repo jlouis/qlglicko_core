@@ -1,15 +1,16 @@
 -module(qlg_rank).
 
 -export([rank/1, rank/2, rank/3,
+         read/2,
          init_players/0,
          load_keep/0,
          load_all/0,
          unload_all/0,
          predict/2,
          rate_game/2,
-         expected_score/3, expected_score/4,
          write_csv/2,
-         matrix/3,
+         matrix/1,
+         write_matrix/2,
          ps/0,
          load_tournaments/1]).
 -export([loader_looper/0]).
@@ -134,19 +135,35 @@ commatize([]) -> [];
 commatize([E]) -> [E];
 commatize([A| Rest]) -> [A, $,, commatize(Rest)].
 
-matrix(Db, Players, Fname) ->
-    Bins = [iolist_to_binary(P) || P <- Players],
-    Matrix = [[P1, commatize([io_lib:format("~6.2. f", [expected_score(Db, P1, Opponent)]) || Opponent <- Bins]), $\n] || P1 <- Bins],
-    Header = [$ , $, , commatize(Players), $\n],
-    Data = [Header | [commatize(L) || L <- Matrix]],
-    file:write_file(Fname, Data).
+write_matrix(Fn, Players) ->
+    M = matrix(Players),
+    file:write_file(Fn, M).
 
-expected_score(Db, P1, P2) ->
-    [[Id1]] = ets:match(qlg_players, {'$1', P1}),
-    [[Id2]] = ets:match(qlg_players, {'$1', P2}),
-    {R1, RD1} = player_rating(Db, Id1),
-    {R2, RD2} = player_rating(Db, Id2),
-    expected_score(R1, RD1, R2, RD2).
+read(Fn, Db) ->
+    {ok, [Players, Groups]} = file:consult(Fn),
+    {Players ++ lookup_players(Groups, Db),
+     Groups}.
+
+lookup_players(Gps, Db) ->
+    Players = lists:concat([Ps || {group, _, Ps} <- Gps]),
+    [lookup_rating(P, Db) || P <- Players]
+.
+lookup_rating(P, Db) ->
+    [[Id]] = ets:match(qlg_players, {'$1', iolist_to_binary(P)}),
+    {R, RD} = player_rating(Id, Db),
+    {player, P, R, RD, dummy}.
+
+name({player, N, _, _, _}) -> N.
+
+matrix(Players) ->
+    Matrix = [[name(P), commatize([io_lib:format("~6.2. f", [expected_score(P, O)])
+                             || O <- Players]), $\n]
+              || P <- Players],
+    Header = [$ , $, , commatize([name(P) || P <- Players]), $\n],
+    [Header | [commatize(L) || L <- Matrix]].
+
+expected_score({player, _A, RA, RDA, _}, {player, _B, RB, RDB, _}) ->
+    expected_score(RA, RDA, RB, RDB).
 
 expected_score(WR, WRD, LR, LRD) ->
     GVal = expected_g(math:sqrt(WRD*WRD + LRD*LRD)),
@@ -155,8 +172,8 @@ expected_score(WR, WRD, LR, LRD) ->
 predict_matches(_Db, []) -> [];
 predict_matches(Db, [[Winner, Loser] | Next]) ->
     try
-        {WR, WRD} = player_rating(Db, Winner),
-        {LR, LRD} = player_rating(Db, Loser),
+        {WR, WRD} = player_rating(Winner, Db),
+        {LR, LRD} = player_rating(Loser, Db),
         E = expected_score(WR, WRD, LR, LRD),
         [rate_game(1, E) | predict_matches(Db, Next)]
     catch
@@ -164,7 +181,7 @@ predict_matches(Db, [[Winner, Loser] | Next]) ->
             predict_matches(Db, Next)
     end.
 
-player_rating(DB, P) ->
+player_rating(P, DB) ->
     {R, RD, _} = dict:fetch(P, DB),
     {R, RD}.
 
