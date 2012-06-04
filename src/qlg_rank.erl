@@ -10,6 +10,7 @@
          rate_game/2,
          write_csv/2,
          matrix/1,
+         write_player_csv/2,
          write_matrix/2,
          ps/0,
          load_tournaments/1]).
@@ -139,19 +140,30 @@ write_matrix(Fn, Players) ->
     M = matrix(Players),
     file:write_file(Fn, M).
 
+write_player_csv(Fn, Players) ->
+    file:write_file(Fn,
+                    ["Player,R,RD,Sigma\n" |
+                     [[io_lib:format("~s,~f,~f,~f\n", [P, R, RD, Sigma])
+                       || {player, P, R, RD, Sigma} <- Players]]]).
+
 read(Fn, Db) ->
-    {ok, [Players, Groups]} = file:consult(Fn),
-    {Players ++ lookup_players(Groups, Db),
+    {ok, [_Players, Groups]} = file:consult(Fn),
+    {lookup_players(Groups, Db),
      Groups}.
+
 
 lookup_players(Gps, Db) ->
     Players = lists:concat([Ps || {group, _, Ps} <- Gps]),
-    [lookup_rating(P, Db) || P <- Players]
-.
+    [lookup_rating(P, Db) || P <- Players].
+
 lookup_rating(P, Db) ->
-    [[Id]] = ets:match(qlg_players, {'$1', iolist_to_binary(P)}),
-    {R, RD} = player_rating(Id, Db),
-    {player, P, R, RD, dummy}.
+    case ets:match(qlg_players, {'$1', iolist_to_binary(P)}) of
+        [[Id]] ->
+            {R, RD, Sigma} = dict:fetch(Id, Db),
+            {player, P, R, RD, Sigma};
+        [] ->
+            {player, P, 1500.0, 350.0, 0.06}
+    end.
 
 name({player, N, _, _, _}) -> N.
 
