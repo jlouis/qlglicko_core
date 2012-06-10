@@ -12,6 +12,7 @@
          matrix/1,
          write_player_csv/2,
          write_matrix/2,
+         process_tourney/3,
          ps/0,
          load_tournaments/1]).
 -export([loader_looper/0]).
@@ -151,6 +152,11 @@ read(Fn, Db) ->
     {lookup_players(Groups, Db),
      Groups}.
 
+process_tourney(Source, DestPrefix, Db) ->
+    {Players, _Groups} = read(Source, Db),
+    write_matrix(DestPrefix ++ "_matrix.csv", Players),
+    write_player_csv(DestPrefix ++ "_rankings.csv", Players),
+    ok.
 
 lookup_players(Gps, Db) ->
     Players = lists:concat([Ps || {group, _, Ps} <- Gps]),
@@ -168,11 +174,11 @@ lookup_rating(P, Db) ->
 name({player, N, _, _, _}) -> N.
 
 matrix(Players) ->
-    Matrix = [[name(P), commatize([io_lib:format("~6.2. f", [expected_score(P, O)])
+    Matrix = [[name(P), $,, commatize([io_lib:format("~6.2. f", [expected_score(P, O)])
                              || O <- Players]), $\n]
               || P <- Players],
-    Header = [$ , $, , commatize([name(P) || P <- Players]), $\n],
-    [Header | [commatize(L) || L <- Matrix]].
+    Header = ["Name,", commatize([name(P) || P <- Players]), $\n],
+    [Header | Matrix].
 
 expected_score({player, _A, RA, RDA, _}, {player, _B, RB, RDB, _}) ->
     expected_score(RA, RDA, RB, RDB).
