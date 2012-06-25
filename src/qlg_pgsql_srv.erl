@@ -11,20 +11,20 @@
 
 %% API
 -export([start_link/0]).
--export([store_match/2, %%
-         db_connect/0, %%
-         all_tournaments/0, %%
-         all_players/0, %%
-         tournament_matches/1, %%
-         select_player/1, %%
-         players_to_refresh/0, %%
-         matches_to_fetch/0, %%
-         matches_to_analyze/0, %%
-         mark_analyzed/1, %%
-         fetch_match/1, %%
-         refresh_player/1, %%
-         should_player_be_refreshed/1, %%
-         mk_player/1 %%
+-export([store_match/2,
+         db_connect/0,
+         all_tournaments/0,
+         all_players/0,
+         tournament_matches/1,
+         select_player/1,
+         players_to_refresh/0,
+         matches_to_fetch/0,
+         matches_to_analyze/0,
+         mark_analyzed/1,
+         fetch_match/1,
+         refresh_player/1,
+         should_player_be_refreshed/1,
+         mk_player/1
         ]).
 
 %% gen_server callbacks
