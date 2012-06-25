@@ -401,6 +401,7 @@ ex_should_match_be_updated(C, Id) ->
 ex_store_duel_match(C, Id,
                     #duel_match {
                          played = Played,
+                         map = Map,
                          winner = Winner,
                          winner_score = WinnerS,
                          loser = Loser,
@@ -409,6 +410,6 @@ ex_store_duel_match(C, Id,
     {ok, 1} = pgsql:equery(
                 C,
                 "INSERT INTO duel_match "
-                "(id, played, winner, winner_score, loser, loser_score) "
-                " VALUES ($1, $2, $3, $4, $5, $6)",
-                [Id, Played, Winner, WinnerS, Loser, LoserS]).
+                "(id, played, map, winner, winner_score, loser, loser_score) "
+                " VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                [Id, Played, Map, Winner, WinnerS, Loser, LoserS]).

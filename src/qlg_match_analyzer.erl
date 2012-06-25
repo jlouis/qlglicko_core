@@ -91,9 +91,10 @@ persist_duel_match(Id, JSON) ->
                     Duration = list_to_integer(binary_to_list(proplists:get_value(<<"GAME_LENGTH">>, JSON))),
                     P1S = extract_scores(P1),
                     P2S = extract_scores(P2),
+                    Map = proplists:get_value(<<"MAP">>, JSON),
                     {ok, P1_Id} = add_new_player(P1S),
                     {ok, P2_Id} = add_new_player(P2S),
-                    case mk_match(decode_timestamp(Played), Duration, {P1_Id, P1S}, {P2_Id, P2S}) of
+                    case mk_match(decode_timestamp(Played), Duration, Map, {P1_Id, P1S}, {P2_Id, P2S}) of
                         {ok, M} -> qlg_pgsql_srv:store_match(Id, M);
                         {skip, Why} ->
                             error_logger:info_report([skipped, Why, Id]),
@@ -148,8 +149,14 @@ decode_rank(<<"1">>) -> 1;
 decode_rank(<<"2">>) -> 2;
 decode_rank(<<"-1">>) -> 999.
 
-mk_match(_Played, Duration, _P1, _P2) when Duration < 60 -> {skip, {game_length, Duration}};
-mk_match(Played, _Duration, P1, P2)                      -> mk_match(Played, P1, P2).
+mk_match(_Played, Duration, _Map, _P1, _P2) when Duration < 60 -> {skip, {game_length, Duration}};
+mk_match(Played, _Duration, Map, P1, P2)                      ->
+    case mk_match(Played, P1, P2) of
+        {ok, DM} ->
+            {ok, DM#duel_match { map = Map }};
+        Other ->
+            Other
+    end.
 
 mk_match(Played, {Id1, {_P1, R1, S1}},
                  {Id2, {_P2, R2, S2}}) when R1 < R2 ->
