@@ -19,19 +19,11 @@
          select_player/1, %%
          players_to_refresh/0, %%
          matches_to_fetch/0, %%
-         tournament_mark_ranked/1,
          matches_to_analyze/0, %%
          mark_analyzed/1, %%
-         fetch_player_name/1,
-         fetch_wins/2, fetch_wins/3,
-         fetch_losses/2, fetch_losses/3,
-         fetch_player_rating/1, fetch_player_rating/2,
          fetch_match/1, %%
-         store_player_ranking/2,
          refresh_player/1, %%
-         should_match_be_updated/1,
          should_player_be_refreshed/1, %%
-         players_in_tournament/1,
          mk_player/1 %%
         ]).
 
@@ -84,17 +76,11 @@ mark_analyzed(Id) ->
 players_to_refresh() ->
     call(players_to_refresh).
 
-should_match_be_updated(Id) ->
-    call({should_match_be_updated, Id}).
-
 should_player_be_refreshed(Id) ->
     call({should_player_be_refreshed, Id}).
 
 tournament_matches(T) ->
     call({tournament_matches, T}).
-
-store_player_ranking(T, PI) ->
-    call({store_player_ranking, T, PI}).
 
 matches_to_fetch() ->
     call(matches_to_fetch).
@@ -102,38 +88,11 @@ matches_to_fetch() ->
 refresh_player(Id) ->
     call({refresh_player, Id}).
 
-fetch_player_name(Id) ->
-    call({fetch_player_name, Id}).
-
-fetch_player_rating(C, P) ->
-    ex_fetch_player_rating(C, P).
-
-fetch_player_rating(P) ->
-    call({fetch_player_rating, P}).
-
-fetch_wins(C, P, T) ->
-    ex_fetch_wins(C, P, T).
-
-fetch_wins(P, T) ->
-    call({fetch_wins, P, T}).
-
-fetch_losses(C, P, T) ->
-    ex_fetch_losses(C, P, T).
-
-tournament_mark_ranked(T) ->
-    call({tournament_mark_ranked, T}).
-
-fetch_losses(P, T) ->
-    call({fetch_losses, P, T}).
-
 store_match(Id, Blob) when Blob == null;
                            is_binary(Blob) ->
     call({store_match, Id, Blob});
 store_match(Id, #duel_match{} = DM) ->
     call({store_duel_match, Id, DM}).
-
-players_in_tournament(T) ->
-    call({players_in_tournament, T}).
 
 %%%===================================================================
 
@@ -143,17 +102,9 @@ init([]) ->
     {ok, #state{ conn = C}}.
 
 %% @private
-handle_call({players_in_tournament, T}, _From,
-            #state { conn = C } = State) ->
-    Reply = ex_players_in_tournament(C, T),
-    {reply, Reply, State};
 handle_call({should_player_be_refreshed, Id}, _From,
             #state { conn = C } = State) ->
     Reply = ex_should_player_be_refreshed(C, Id),
-    {reply, Reply, State};
-handle_call({should_match_be_updated, Id}, _From,
-            #state { conn = C } = State) ->
-    Reply = ex_should_match_be_updated(C, Id),
     {reply, Reply, State};
 handle_call({fetch_match, Id}, _From,
             #state { conn = C } = State) ->
@@ -167,31 +118,14 @@ handle_call(all_tournaments, _From,
             #state { conn = C } = State) ->
     Reply = ex_all_tournaments(C),
     {reply, Reply, State};
-handle_call({fetch_player_name, Id}, _From,
-            #state { conn = C } = State) ->
-    Reply = ex_fetch_player_name(C, Id),
-    {reply, Reply, State};
 handle_call(matches_to_fetch, _From, #state { conn = C } = State) ->
     Reply = ex_matches_to_fetch(C),
-    {reply, Reply, State};
-handle_call({fetch_wins, P, T}, _From, #state {conn = C} = State) ->
-    Reply = ex_fetch_wins(C, P, T),
-    {reply, Reply, State};
-handle_call({fetch_losses, P, T}, _From, #state {conn = C} = State) ->
-    Reply = ex_fetch_losses(C, P, T),
-    {reply, Reply, State};
-handle_call({store_player_ranking, T, PI},
-            _From, #state { conn = C } = State) ->
-    Reply = ex_store_player_ranking(C, T, PI),
     {reply, Reply, State};
 handle_call(matches_to_analyze, _From, #state { conn = C } = State) ->
     Reply = ex_matches_to_analyze(C),
     {reply, Reply, State};
 handle_call(players_to_refresh, _From, #state { conn = C } = State) ->
     Reply = ex_players_to_refresh(C),
-    {reply, Reply, State};
-handle_call({fetch_player_rating, P}, _From, #state {conn = C} = State) ->
-    Reply = ex_fetch_player_rating(C, P),
     {reply, Reply, State};
 handle_call({select_player, Name}, _From, #state { conn = C } = State) ->
     Reply = ex_select_player(C, Name),
@@ -207,10 +141,6 @@ handle_call({refresh_player, Id}, _From, #state { conn = C } = State) ->
     {reply, Reply, State};
 handle_call({tournament_matches, T}, _From, #state { conn = C } = State) ->
     Reply = ex_tournament_matches(C, T),
-    {reply, Reply, State};
-handle_call({tournament_mark_ranked, Id},
-            _From, #state { conn = C } = State) ->
-    Reply = ex_mark_tournament_ranked(C, Id),
     {reply, Reply, State};
 handle_call({store_match, Id, Blob}, _From, #state { conn = C } = State) ->
     Reply = ex_store_match(C, Id, Blob),
@@ -240,26 +170,6 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
-ex_players_in_tournament(C, T) ->
-    {ok, _, Players} =
-        pgsql:equery(
-          C,
-          "SELECT player_id, r, rd, sigma FROM player_ratings"),
-    {ok, _, NewPlayers} =
-        pgsql:equery(
-          C,
-          "SELECT player, 1500, 350, 0.06 :: float FROM tournament_players"
-          " WHERE player NOT IN (SELECT player_id FROM player_ratings) "
-          " AND tournament = $1", [T]),
-    {ok, foo, Players ++ NewPlayers}.
-
-ex_fetch_player_rating(C, P) ->
-    pgsql:equery(
-      C,
-      "SELECT player_id, r, rd, sigma "
-      "FROM player_ratings "
-      "WHERE player_id = $1", [P]).
-
 ex_fetch_match(C, Id) ->
     {ok, _, [{Content}]} = pgsql:equery(
                              C,
@@ -295,41 +205,6 @@ ex_tournament_matches(C, T) ->
           "WHERE t.id = $1 AND played BETWEEN t.t_from and t.t_to",
           [T]),
     Matches.
-
-ex_fetch_player_name(C, Id) ->
-    {ok, _, [{Pname}]} = pgsql:equery(C,
-                                      "SELECT name FROM player where id = $1",
-                                      [Id]),
-    binary_to_list(Pname).
-
-ex_fetch_wins(C, P, T) ->
-    {ok, _, Matches} = pgsql:equery(C,
-                                    "SELECT loser, lr, lrd "
-                                    "FROM duel_match_ratings, tournament t "
-                                    "WHERE winner = $1 "
-                                    "AND t.id = $2 "
-                                    "AND played BETWEEN "
-                                    " t.t_from AND t.t_to", [P, T]),
-    [{Rj, RDj, 1} || {_, Rj, RDj} <- Matches].
-
-ex_fetch_losses(C, P, T) ->
-    {ok, _, Matches} = pgsql:equery(C,
-                                    "SELECT winner, wr, wrd "
-                                    "FROM duel_match_ratings, tournament t "
-                                    "WHERE loser = $1 "
-                                    "AND t.id = $2 "
-                                    "AND played BETWEEN "
-                                    " t.t_from AND t.t_to", [P, T]),
-    [{Rj, RDj, 0} || {_, Rj, RDj} <- Matches].
-
-ex_mark_tournament_ranked(C, T) ->
-    pgsql:equery(C,
-                 "UPDATE tournament SET done = true WHERE id = $1", [T]).
-
-ex_store_player_ranking(C, T, {Id, R, RD, Sigma}) ->
-    pgsql:equery(C,
-                 "INSERT INTO tournament_result (id, player_id, r, rd, sigma)"
-                 "VALUES ($1, $2, $3, $4, $5)", [T, Id, R, RD, Sigma]).
 
 ex_matches_to_fetch(C) ->
     pgsql:equery(C, "SELECT id FROM matches_to_refresh LIMIT 66").
@@ -383,16 +258,6 @@ ex_should_player_be_refreshed(C, Name) ->
     case pgsql:equery(
            C,
            "SELECT id, lastupdate FROM players_to_update WHERE id = $1", [Name]) of
-        {ok, _, []} ->
-            false;
-        {ok, _, [_|_]} ->
-            true
-    end.
-
-ex_should_match_be_updated(C, Id) ->
-    case pgsql:equery(
-           C,
-           "SELECT id FROM matches_to_refresh WHERE id = $1", [Id]) of
         {ok, _, []} ->
             false;
         {ok, _, [_|_]} ->
