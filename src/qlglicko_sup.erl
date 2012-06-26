@@ -1,4 +1,3 @@
-
 -module(qlglicko_sup).
 
 -behaviour(supervisor).
@@ -24,6 +23,9 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
+    PgsqlSrv =
+        {qlg_pgsql_srv, {qlg_pgsql_srv, start_link, []},
+         permanent, 5000, worker, [qlg_pgsql_srv]},
     OverloadDetect =
         {qlg_overload, {qlg_overload, start_link, []},
          permanent, 5000, worker, [qlg_overload]},
@@ -33,9 +35,6 @@ init([]) ->
     FetchMatchPool =
         {qlg_fetch_match_pool, {qlg_fetch_match_pool, start_link, []},
          transient, infinity, supervisor, [qlg_fetch_match_pool]},
-    PgsqlSrv =
-        {qlg_pgsql_srv, {qlg_pgsql_srv, start_link, []},
-         permanent, 5000, worker, [qlg_pgsql_srv]},
     MatchAnalyzer =
         {qlg_match_analyzer, {qlg_match_analyzer, start_link, []},
          permanent, 5000, worker, [qlg_match_analyzer]},
@@ -43,9 +42,9 @@ init([]) ->
         {qlglicko_timer, {qlglicko_timer, start_link, []},
          permanent, 5000, worker, [qlglicko_timer]},
     {ok, { {one_for_all, 3, 3600}, [OverloadDetect,
+                                    PgsqlSrv,
                                     FetchPlayerPool,
                                     FetchMatchPool,
-                                    PgsqlSrv,
                                     MatchAnalyzer,
                                     Timer
                                     ]} }.
