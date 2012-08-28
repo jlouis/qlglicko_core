@@ -71,7 +71,7 @@ refill_players() ->
     {ok, _, Players} =
         qlg_pgsql_srv:players_to_refresh(),
     lager:debug("Submitting ~B player fetch jobs", [length(Players)]),
-    [qlg_fetch_player_pool:fetch_player(Id, binary_to_list(Name), Age)
+    [qlg_fetch_player_pool:fetch_player(Id, binary_to_list(Name), trunc(Age) + 1)
      || {Id, Name, Age} <- Players],
     ok.
 
