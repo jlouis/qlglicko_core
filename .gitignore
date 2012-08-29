@@ -1,4 +1,4 @@
 *.beam
 /ebin/qlglicko_core.app
 /deps
-
+/.eunit
