@@ -12,7 +12,7 @@ anneal() ->
     anneal(S0).
 
 anneal(S0) ->
-    anneal(S0, 4).
+    anneal(S0, 8).
 
 anneal(S0, K) ->
     Originator = self(),
