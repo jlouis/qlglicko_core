@@ -52,7 +52,7 @@ iterate(0, _F, S) -> S;
 iterate(N, F, S) -> iterate(N-1, F, F(S)).
 
 anneal_worker(Ctl, S0) ->
-    sfmt:seed(os:timestamp()),
+    sfmt:seed(erlang:now()),
     S = iterate(10, fun neighbour/1, S0),
     E = e(S),
     anneal_check(Ctl, S, E, S, E, 0).
