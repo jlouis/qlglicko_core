@@ -4,9 +4,12 @@
          read_config/1]).
 
 -export([phi_star/2,
-         glicko_test/0,
-         glicko_test2/0,
          rate/4, rate/5]).
+
+-ifdef(TEST).
+-export([glicko_volatility_test/0]).
+-export([glicko_test/0]).
+-endif.
 
 -define(EPSILON, 0.000001).
 -record(config, { rd, v, tau}).
@@ -152,6 +155,9 @@ rate(R, RD, Sigma, Opponents, Conf) ->
     {R1, RD1} = unscale(MuP, PhiP),
     {R1, RD1, SigmaP}.
 
+
+-ifdef(TEST).
+
 data() ->
     Player = {a, 1500, 200},
     Volatility = 0.06,
@@ -159,6 +165,8 @@ data() ->
                  {1550, 100, 0},
                  {1700, 300, 0}],
     {Player, Volatility, Opponents}.
+
+within(X, Y) -> abs(X - Y) < 0.0001.
 
 glicko_test() ->
     {{a, R, RD}, Sigma, Opponents} = data(),
@@ -178,15 +186,17 @@ glicko_test() ->
     Delta = compute_delta(V, ScaledOpponents),
     -0.4839332609836549 = Delta,
     SigmaP = i_compute_volatility(Sigma, Phi, V, Delta, configuration(350, 0.06, 0.5)),
-    0.059995984286488495 = SigmaP,
+    true = within(0.059995984286488495, SigmaP),
     PhiStar = phi_star(SigmaP, Phi),
-    1.1528546895801364 = PhiStar,
+    true = within(1.1528546895801364, PhiStar),
     {MuP, PhiP} = new_rating(PhiStar, Mu, V, ScaledOpponents),
-    {-0.20694096667525494, 0.8721991881307343} = {MuP, PhiP},
+    true = within(-0.20694096667525494, MuP),
+    true = within(0.8721991881307343, PhiP),
     {R1, RD1} = unscale(MuP, PhiP),
-    {1464.0506705393013, 151.51652412385727} = {R1, RD1}.
+    true = within(1464.0506705393013, R1),
+    true = within(151.51652412385727, RD1).
 
-glicko_test2() ->
+glicko_volatility_test() ->
     V = 1.7785,
     Delta = -0.4834,
     Tau = 0.5,
@@ -195,3 +205,4 @@ glicko_test2() ->
     SigmaP = i_compute_volatility(Sigma, Phi, V, Delta, configuration(350, 0.06, Tau)),
     SigmaP.
 
+-endif.
