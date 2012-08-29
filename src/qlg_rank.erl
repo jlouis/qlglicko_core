@@ -80,23 +80,29 @@ rank(_DB, [], _Idx, _) -> [].
 %% Prediction
 %% ----------------------------------------------------------------------
 
+%% @doc Gauge how well we predict matches
+%% <p>given a database of player matches and a tournament index, go
+%% through the match outcomes in the tournament with respect to our
+%% ratings. Then run a binomial prediction on how well we guess the
+%% correct outcome of the matches for the tournament. That is, the
+%% better we are, the better the score.</p>
+%% <p>This code is used by the annealer in order to find the best
+%% configuration parameters for the system.</p>
+%% @end
 predict(DB, Idx) ->
     Matches = ets:match(qlg_matches, {{Idx, {'$1', w}}, '$2'}),
     Predicted = predict_matches(DB, Matches),
     lists:sum(Predicted) / length(Predicted).
 
-q() ->
-    math:log(10) / 400.
 
 rate_game(Y, E) ->
     -(Y * math:log10(E) + (1 - Y)*math:log10(1-E)).
 
+q() ->
+    math:log(10) / 400.
+
 expected_g(RD) ->
     1 / (math:sqrt(1 + 3*q()*q()*RD*RD/(math:pi()*math:pi()))).
-
-commatize([]) -> [];
-commatize([E]) -> [E];
-commatize([A| Rest]) -> [A, $,, commatize(Rest)].
 
 process_tourney(Source, DestPrefix, Db) ->
     {Players, _Groups} = read(Source, Db),
@@ -172,6 +178,11 @@ format_player(Id, {R, Rd, S}) ->
     [Name, $,, float_to_list(R), $,, float_to_list(Rd), $,, float_to_list(S)].
 
 name({player, N, _, _, _}) -> N.
+
+commatize([]) -> [];
+commatize([E]) -> [E];
+commatize([A| Rest]) -> [A, $,, commatize(Rest)].
+
 
 matrix(Players) ->
     Matrix = [[name(P), $,, commatize([io_lib:format("~6.2. f", [expected_score(P, O)])
