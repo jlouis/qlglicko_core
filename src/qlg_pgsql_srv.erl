@@ -12,7 +12,6 @@
 %% API
 -export([start_link/0]).
 -export([store_match/2,
-         db_connect/0,
          all_tournaments/0,
          all_players/0,
          tournament_matches/1,
@@ -43,11 +42,6 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
-
-db_connect() ->
-    {Host, Name, PW, DB} =
-        gproc:get_env(l, qlglicko_core, postgres, [app_env, error]),
-    pgsql:connect(Host, Name, PW, [{database, DB}]).
 
 call(Msg) ->
     gen_server:call(?MODULE, Msg, timer:minutes(2)).
@@ -279,3 +273,9 @@ ex_store_duel_match(C, Id,
                 "(id, played, map, winner, winner_score, loser, loser_score) "
                 " VALUES ($1, $2, $3, $4, $5, $6, $7)",
                 [Id, Played, Map, Winner, WinnerS, Loser, LoserS]).
+
+db_connect() ->
+    {Host, Name, PW, DB} =
+        gproc:get_env(l, qlglicko_core, postgres, [app_env, error]),
+    pgsql:connect(Host, Name, PW, [{database, DB}]).
+
