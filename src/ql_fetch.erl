@@ -11,6 +11,7 @@ player_matches(_Player, [], Matches) ->
     {ok, Matches};
 player_matches(Player, [Week | NextWeek], Acc) ->
     case request_player_matches(Player, Week) of
+        account_closed -> account_closed;
         {ok, Matches} ->
             lager:debug("Fetched - Player: ~s, Week: ~p: ~B",
                         [Player, Week, length(Matches)]),
@@ -24,7 +25,7 @@ request_player_matches(Player, Week) when is_list(Player) ->
     URL = week_matches_url(Player, Week),
     case request(URL) of
         {ok, Body} ->
-            {ok, parse_matches(Body)};
+            parse_matches(Body);
         {error, Reason} ->
             {error, Reason}
     end.
@@ -44,9 +45,13 @@ parse_matches(Body) ->
                        "id=\"duel_([a-z0-9-]{36})_1\">"),
     case re:run(Body, REC, [global, {capture, all, binary}]) of
         {match, Ms} ->
-            [M || [_, M] <- Ms];
+            {ok, [M || [_, M] <- Ms]};
         nomatch ->
-            []
+            {ok, CloseRE} = re:compile("Unknown Player"),
+            case re:run(Body, CloseRE, [global, {capture, all, binary}]) of
+              nomatch -> {ok, []};
+              {match, _} -> account_closed
+            end
     end.
 
 match_url(Match) when is_binary(Match) ->

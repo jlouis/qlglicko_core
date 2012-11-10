@@ -12,6 +12,7 @@
 %% API
 -export([start_link/0]).
 -export([store_match/2,
+	add_to_hall_of_fame/2,
          all_tournaments/0,
          all_players/0,
          tournament_matches/1,
@@ -22,6 +23,7 @@
          mark_analyzed/1,
          fetch_match/1,
          refresh_player/1,
+         remove_active_player/1,
          should_player_be_refreshed/1,
          mk_player/1
         ]).
@@ -88,6 +90,12 @@ store_match(Id, Blob) when Blob == null;
 store_match(Id, #duel_match{} = DM) ->
     call({store_duel_match, Id, DM}).
 
+add_to_hall_of_fame(Id, Name) ->
+    call({add_to_hall_of_fame, Id, Name}).
+
+remove_active_player(Id) ->
+    call({remove_active, Id}).
+
 %%%===================================================================
 
 %% @private
@@ -142,6 +150,12 @@ handle_call({store_match, Id, Blob}, _From, #state { conn = C } = State) ->
 handle_call({store_duel_match, Id, MatchRec}, _From,
             #state { conn = C} = State) ->
     Reply = ex_store_duel_match(C, Id, MatchRec),
+    {reply, Reply, State};
+handle_call({remove_active, Id}, _From, #state { conn = C } = State) ->
+    Reply = ex_remove_active_player(C, Id),
+    {reply, Reply, State};
+handle_call({add_to_hall_of_fame, Id, Name}, _From, #state { conn = C } = State) ->
+    Reply = ex_add_to_hall_of_fame(C, Id, Name),
     {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -227,6 +241,16 @@ ex_store_player(C, Name) ->
                            "VALUES ($1, now() - '5 days' :: interval)",
                            [Name]),
     ok.
+
+ex_remove_active_player(C, Id) ->
+   {ok, 1} = pgsql:equery(C,
+	"DELETE FROM player WHERE id = $1", [Id]).
+
+ex_add_to_hall_of_fame(C, Id, Name) ->
+    pgsql:equery(C,
+    	"DELETE FROM hall_of_fame WHERE id = $1 AND name = $2", [Id, Name]),
+    pgsql:equery(C,
+         "INSERT INTO hall_of_fame (id, name, entry) VALUES ($1, $2, now())").
 
 knows_match(C, Id) ->
     case pgsql:equery(C, "SELECT id FROM raw_match WHERE id = $1", [Id]) of

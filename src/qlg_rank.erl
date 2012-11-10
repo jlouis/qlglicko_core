@@ -1,6 +1,8 @@
 -module(qlg_rank).
 
 -export([rank/1, rank/2, rank/3,
+         expected_score/4,
+	run/1,
          read/2,
          predict/2,
          rate_game/2,
@@ -9,6 +11,59 @@
          write_player_csv/2,
          write_matrix/2,
          process_tourney/3]).
+
+-export([load_keep/0, unload_all/0, loader_looper/0]).
+
+%% Loading
+%% ----------------------------------------------------------------------
+
+unload_all() ->
+    ets:delete(qlg_matches).
+
+load_keep() ->
+    spawn(fun() ->
+                  load_all(),
+                  loader_looper()
+          end).
+
+loader_looper() ->
+    receive
+        stop ->
+            ok
+    after 2000 ->
+            ?MODULE:loader_looper()
+    end.
+        
+load_all() ->
+    {ok, Ts} = qlg_pgsql_srv:all_tournaments(),
+    load_tournaments(Ts),
+    {ok, Players} = qlg_pgsql_srv:all_players(),
+    load_players(Players),
+    {ok, ets:info(qlg_matches, size), ets:info(qlg_players, size)}.
+
+load_tournaments(Ts) ->
+    ets:new(qlg_matches,
+            [named_table, public, {read_concurrency, true},
+             duplicate_bag]),
+    Counted = lists:zip(lists:seq(1, length(Ts)), Ts),
+    [load_tournament(K, T) || {K, T} <- Counted].
+
+%% @doc Load tournaments from disk
+%% This populates the qlg_matches table with a number of tournaments
+%% from the disk.
+load_tournament(Idx, T) ->
+    Matches = qlg_pgsql_srv:tournament_matches(T),
+    [begin
+         ets:insert(qlg_matches, {{Idx, {Winner, w}}, Loser}),
+         ets:insert(qlg_matches, {{Idx, {Loser, l}}, Winner})
+     end || {Winner, Loser} <- Matches].
+
+load_players(Players) ->
+    ets:new(qlg_players, [named_table, public, {read_concurrency, true},
+                          set]),
+    [ets:insert(qlg_players, {Id, Name}) || {Id, Name} <- Players],
+    ok.
+
 
 %% Ranking
 %% ----------------------------------------------------------------------
@@ -56,6 +111,10 @@ rank_player(Db, Player, Idx, Conf) ->
                       clamp(0.0, RD1, 400.0),
                       clamp(0.0, Sigma1, 0.1)}}
     end.
+
+run(Idxs) ->
+    {ok, Db} = rank(Idxs, glicko2:configuration(397, 0.07, 0.3)),
+    write_csv("rankings.csv", Db).
 
 rank(Idxs) ->
     rank(Idxs, glicko2:configuration(350, 0.06, 0.5)).

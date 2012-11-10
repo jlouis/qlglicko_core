@@ -11,9 +11,10 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, { id,
-                 name,
-                 age}).
+-record(state,
+	{ id,
+           name,
+           age}).
 
 %%%===================================================================
 
@@ -42,7 +43,7 @@ handle_cast(run, State) ->
         {ok, _Opaque} ->
             case qlg_overload:ask() of
                 yes ->
-                    fetch_and_store(State);
+                    run_fetch_job(State);
                 no ->
                     ok
             end,
@@ -86,17 +87,23 @@ find_weeks(Now, K) when K >= 7 ->
 fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
     WeeksToFetch = find_weeks(Age),
     ok = lager:debug("Refreshing player ~s for weeks ~p", [Name, WeeksToFetch]),
-    case qlg_pgsql_srv:should_player_be_refreshed(Id) of
-        true ->
-            {ok, Matches} = ql_fetch:player_matches(Name, WeeksToFetch),
-            R = [{ok, _} = qlg_pgsql_srv:store_match(M, null) || M <- Matches],
-            Count = lists:sum([K || {ok, K} <- R]),
-            lager:debug("Player ~s adding ~B new matches to fetch queue",
-                        [Name, Count]),
-            {ok, 1} = qlg_pgsql_srv:refresh_player(Id),
-            ok;
-        false ->
-            ok
+    case ql_fetch:player_matches(Name, WeeksToFetch) of
+      account_closed ->
+        qlg_pgsql_srv:add_to_hall_of_fame(Id, Name),
+        qlg_pgsql_srv:remove_active_player(Id),
+        lager:debug("Player account ~s closed, player moved to Hall of fame"),
+        ok;
+      {ok, Matches} ->
+        R = [{ok, _} = qlg_pgsql_srv:store_match(M, null) || M <- Matches],
+        Count = lists:sum([K || {ok, K} <- R]),
+        lager:debug("Player ~s adding ~B new matches to fetch queue", [Name, Count]),
+        {ok, 1} = qlg_pgsql_srv:refresh_player(Id),
+        ok
     end.
 
-
+run_fetch_job(#state { id = Id } = State) ->
+    case qlg_pgsql_srv:should_player_be_refreshed(Id) of
+      true -> fetch_and_store(State);
+      false -> ok
+    end.
+	
