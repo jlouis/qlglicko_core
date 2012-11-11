@@ -31,10 +31,10 @@ init([]) ->
          permanent, 5000, worker, [qlg_overload]},
     FetchPlayerPool =
         {qlg_fetch_player_pool, {qlg_fetch_player_pool, start_link, []},
-         transient, infinity, supervisor, [qlg_fetch_player_pool]},
+         permanent, infinity, supervisor, [qlg_fetch_player_pool]},
     FetchMatchPool =
         {qlg_fetch_match_pool, {qlg_fetch_match_pool, start_link, []},
-         transient, infinity, supervisor, [qlg_fetch_match_pool]},
+         permanent, infinity, supervisor, [qlg_fetch_match_pool]},
     MatchAnalyzer =
         {qlg_match_analyzer, {qlg_match_analyzer, start_link, []},
          permanent, 5000, worker, [qlg_match_analyzer]},

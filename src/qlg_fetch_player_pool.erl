@@ -39,7 +39,7 @@ init([]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    Restart = temporary,
+    Restart = transient,
     Shutdown = 20000,
     Type = worker,
 
