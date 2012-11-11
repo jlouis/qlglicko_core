@@ -42,8 +42,8 @@ handle_cast(_Msg, State) ->
 
 %% @private
 handle_info(refill, State) ->
-    %%refill_players(),
-    %%refill_matches(),
+    refill_players(),
+    refill_matches(),
     refill_analyzer(),
     erlang:send_after(60*1000, self(), refill),
     {noreply, State};
