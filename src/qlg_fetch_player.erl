@@ -93,10 +93,13 @@ fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
         lager:debug("Check if player ~s is alive", [Name]),
         case qlg_pgsql_srv:alive_check(Id) of
           true ->
+            lager:debug("Performing check"),
             Result = ql_fetch:alive_check(Name),
             qlg_pgsql_srv:bump_alive(Id),
             case Result of
-              alive -> ok;
+              alive ->
+                  lager:debug("Player ~s is alive", [Name]),
+                  ok;
               account_closed ->
                   {ok, _} = qlg_pgsql_srv:add_to_hall_of_fame(Id, Name),
                   {ok, _} = qlg_pgsql_srv:remove_active_player(Id),
@@ -104,6 +107,7 @@ fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
                   ok
             end;
           false ->
+            lager:debug("No need to check the player"),
             ok
         end;
       {ok, Matches} ->
