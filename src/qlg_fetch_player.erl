@@ -110,9 +110,10 @@ fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
         R = [{ok, _} = qlg_pgsql_srv:store_match(M, null) || M <- Matches],
         Count = lists:sum([K || {ok, K} <- R]),
         lager:debug("Player ~s adding ~B new matches to fetch queue", [Name, Count]),
-        {ok, 1} = qlg_pgsql_srv:refresh_player(Id),
         ok
-    end.
+    end,
+    {ok, 1} = qlg_pgsql_srv:refresh_player(Id),
+    ok.
 
 run_fetch_job(#state { id = Id } = State) ->
     case qlg_pgsql_srv:should_player_be_refreshed(Id) of
