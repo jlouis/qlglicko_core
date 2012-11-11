@@ -74,7 +74,7 @@ week_matches_url(Player, {YYYY, MM, DD}) ->
 
 alive_url(Name) ->
     string:join(
-      ["http://www.quakelive.com/#!profile/summary", Name], "/").
+      ["http://www.quakelive.com/profile/summary", Name], "/").
 
 request(URL) ->
     From = now(),
