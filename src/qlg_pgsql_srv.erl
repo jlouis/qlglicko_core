@@ -13,8 +13,10 @@
 -export([start_link/0]).
 -export([store_match/2,
 	add_to_hall_of_fame/2,
+	alive_check/1,
          all_tournaments/0,
          all_players/0,
+         bump_alive/1,
          tournament_matches/1,
          select_player/1,
          players_to_refresh/0,
@@ -83,6 +85,12 @@ matches_to_fetch() ->
 
 refresh_player(Id) ->
     call({refresh_player, Id}).
+
+alive_check(Id) ->
+    call({alive_check, Id}).
+    
+bump_alive(Id) ->
+    call({bump_alive, Id}).
 
 store_match(Id, Blob) when Blob == null;
                            is_binary(Blob) ->
@@ -157,6 +165,12 @@ handle_call({remove_active, Id}, _From, #state { conn = C } = State) ->
 handle_call({add_to_hall_of_fame, Id, Name}, _From, #state { conn = C } = State) ->
     Reply = ex_add_to_hall_of_fame(C, Id, Name),
     {reply, Reply, State};
+handle_call({alive_check, Id}, _From, #state { conn = C } = State) ->
+    Reply = ex_alive_check(C, Id),
+    {reply, Reply, State};
+handle_call({bump_alive, Id}, _From, #state { conn = C } = State) ->
+    Reply = ex_bump_alive(C, Id),
+    {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -230,9 +244,22 @@ ex_mark_analyzed(C, Id) ->
                 C,
                 "UPDATE raw_match SET analyzed = true WHERE id = $1", [Id]).
 
+ex_alive_check(C, Id) ->
+    case pgsql:equery(C,
+    		"SELECT id FROM player "
+    		"WHERE id = $1 AND last_alive_check < (now() - '1 month' :: interval)", [Id]) of
+    	{ok, _, []} -> false;
+    	{ok, _, [_]} -> true
+    end.
+
+ex_bump_alive(C, Id) ->
+    {ok, 1} = pgsql:equery(C,
+    	"UPDATE player SET last_alive_check = now() "
+    	"WHERE id = $1", [Id]).
+
 ex_refresh_player(C, Id) ->
     {ok, 1} = pgsql:equery(C,
-                           "UPDATE player SET lastupdate = now()"
+                           "UPDATE player SET lastupdate = now() "
                            "WHERE id = $1", [Id]).
 
 ex_store_player(C, Name) ->

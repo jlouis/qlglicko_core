@@ -44,7 +44,7 @@ handle_cast(_Msg, State) ->
 handle_info(refill, State) ->
     refill_players(),
     refill_matches(),
-    refill_analyzer(),
+    %%refill_analyzer(),
     erlang:send_after(60*1000, self(), refill),
     {noreply, State};
 handle_info(_Info, State) ->

@@ -2,6 +2,7 @@
 -module(ql_fetch).
 
 -export([player_matches/2,
+	alive_check/1,
          match/1]).
 
 player_matches(Player, Weeks) ->
@@ -11,7 +12,6 @@ player_matches(_Player, [], Matches) ->
     {ok, Matches};
 player_matches(Player, [Week | NextWeek], Acc) ->
     case request_player_matches(Player, Week) of
-        account_closed -> account_closed;
         {ok, Matches} ->
             lager:debug("Fetched - Player: ~s, Week: ~p: ~B",
                         [Player, Week, length(Matches)]),
@@ -19,6 +19,19 @@ player_matches(Player, [Week | NextWeek], Acc) ->
             player_matches(Player, NextWeek, Matches ++ Acc);
         {error, Reason} ->
             {error, Reason}
+    end.
+
+alive_check(Name) ->
+    URL = alive_url(Name),
+    case request(URL) of
+        {ok, Body} ->
+          {ok, RE} = re:compile("Unknown Player"),
+          case re:run(Body, RE, [global, {capture, all, binary}]) of
+            nomatch -> alive;
+            {match, _} -> account_closed
+          end;
+        {error, Reason} ->
+          {error, Reason}
     end.
 
 request_player_matches(Player, Week) when is_list(Player) ->
@@ -46,12 +59,7 @@ parse_matches(Body) ->
     case re:run(Body, REC, [global, {capture, all, binary}]) of
         {match, Ms} ->
             {ok, [M || [_, M] <- Ms]};
-        nomatch ->
-            {ok, CloseRE} = re:compile("Unknown Player"),
-            case re:run(Body, CloseRE, [global, {capture, all, binary}]) of
-              nomatch -> {ok, []};
-              {match, _} -> account_closed
-            end
+        nomatch -> {ok, []}
     end.
 
 match_url(Match) when is_binary(Match) ->
@@ -63,6 +71,10 @@ week_matches_url(Player, {YYYY, MM, DD}) ->
     Base = "http://www.quakelive.com/profile/matches_by_week",
     WeekStr = io_lib:format("~B-~2..0B-~2..0B", [YYYY, MM, DD]),
     string:join([Base, Player, lists:flatten(WeekStr)], "/").
+
+alive_url(Name) ->
+    string:join(
+      ["http://www.quakelive.com/#!profile/summary", Name], "/").
 
 request(URL) ->
     From = now(),
