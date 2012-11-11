@@ -85,8 +85,9 @@ find_weeks(Now, K) when K >= 7 ->
     [weeks_behind(Now, WeeksBehind) | find_weeks(Now, K-7) ].
 
 fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
-    ok = lager:debug("Refreshing player ~s, ~p days behind, for weeks ~p", [Name, Age, WeeksToFetch]),
+    ok = lager:debug("Refreshing player ~s, ~p days behind", [Name, Age]),
     WeeksToFetch = find_weeks(Age),
+    ok = lager:debug("Weeks to fetch for player ~s: ~p", [Name, WeeksToFetch]),
     case ql_fetch:player_matches(Name, WeeksToFetch) of
       account_closed ->
         {ok, _} = qlg_pgsql_srv:add_to_hall_of_fame(Id, Name),
