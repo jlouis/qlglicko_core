@@ -277,7 +277,7 @@ ex_add_to_hall_of_fame(C, Id, Name) ->
     pgsql:equery(C,
     	"DELETE FROM hall_of_fame WHERE id = $1 AND name = $2", [Id, Name]),
     pgsql:equery(C,
-         "INSERT INTO hall_of_fame (id, name, entry) VALUES ($1, $2, now())").
+         "INSERT INTO hall_of_fame (id, name, entry) VALUES ($1, $2, now())", [Id, Name]).
 
 knows_match(C, Id) ->
     case pgsql:equery(C, "SELECT id FROM raw_match WHERE id = $1", [Id]) of
