@@ -2,7 +2,7 @@
 
 -export([rank/1, rank/2, rank/3,
          expected_score/4,
-	run/1,
+	run/1, profile/0,
          read/2,
          predict/2,
          rate_game/2,
@@ -22,7 +22,8 @@ unload_all() ->
 
 load_keep() ->
     spawn(fun() ->
-                  load_all(),
+                  {ok, Matches, Players} = load_all(),
+                  lager:notice("Loaded ~B matches and ~B players", [Matches, Players]),
                   loader_looper()
           end).
 
@@ -54,9 +55,11 @@ load_tournaments(Ts) ->
 load_tournament(Idx, T) ->
     Matches = qlg_pgsql_srv:tournament_matches(T),
     [begin
-         ets:insert(qlg_matches, {{Idx, {Winner, w}}, Loser}),
-         ets:insert(qlg_matches, {{Idx, {Loser, l}}, Winner})
-     end || {Winner, Loser} <- Matches].
+         W = {Winner, Map},
+         L = {Loser, Map},
+         ets:insert(qlg_matches, {{Idx, {W, w}}, L}),
+         ets:insert(qlg_matches, {{Idx, {L, l}}, W})
+     end || {Winner, Loser, Map} <- Matches].
 
 load_players(Players) ->
     ets:new(qlg_players, [named_table, public, {read_concurrency, true},
@@ -111,6 +114,12 @@ rank_player(Db, Player, Idx, Conf) ->
                       clamp(0.0, RD1, 400.0),
                       clamp(0.0, Sigma1, 0.1)}}
     end.
+
+profile() ->
+    eprof:profile(fun() -> qlg_rank:run(lists:seq(1,10)) end),
+    eprof:stop_profiling(),
+    eprof:log("eprof.run"),
+    eprof:analyze().
 
 run(Idxs) ->
     {ok, Db} = rank(Idxs, glicko2:configuration(397, 0.07, 0.3)),
@@ -229,12 +238,12 @@ write_csv(Fname, Db) ->
                           [format_player(Id, Ranking), $\n | Acc]
                   end,
                   [], Db),
-    file:write_file(Fname, [["Player,R,RD,Sigma", $\n] | Data]).
+    file:write_file(Fname, [["Player,Map,R,RD,Sigma", $\n] | Data]).
 
 
-format_player(Id, {R, Rd, S}) ->
+format_player({Id, Map}, {R, Rd, S}) ->
     [{Id, Name}] = ets:lookup(qlg_players, Id),
-    [Name, $,, float_to_list(R), $,, float_to_list(Rd), $,, float_to_list(S)].
+    [Name, $,, Map, $,, float_to_list(R), $,, float_to_list(Rd), $,, float_to_list(S)].
 
 name({player, N, _, _, _}) -> N.
 

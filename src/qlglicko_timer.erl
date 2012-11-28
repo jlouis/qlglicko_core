@@ -42,10 +42,15 @@ handle_cast(_Msg, State) ->
 
 %% @private
 handle_info(refill, State) ->
-    refill_players(),
-    refill_matches(),
-    refill_analyzer(),
-    erlang:send_after(60*1000, self(), refill),
+    case application:get_env(qlglicko_core, refill_enable) of
+      {ok, true} ->
+        refill_players(),
+        refill_matches(),
+        refill_analyzer();
+      {ok, false} ->
+        ignore
+    end,
+    erlang:send_after(timer:seconds(60), self(), refill),
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.

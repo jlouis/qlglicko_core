@@ -20,6 +20,7 @@
          tournament_matches/1,
          select_player/1,
          players_to_refresh/0,
+         player_rank/1,
          matches_to_fetch/0,
          matches_to_analyze/0,
          mark_analyzed/1,
@@ -73,6 +74,9 @@ mark_analyzed(Id) ->
 
 players_to_refresh() ->
     call(players_to_refresh).
+
+player_rank(Player) ->
+    call({player_rank, Player}).
 
 should_player_be_refreshed(Id) ->
     call({should_player_be_refreshed, Id}).
@@ -149,6 +153,9 @@ handle_call({mk_player, Name}, _From, #state { conn = C } = State) ->
 handle_call({refresh_player, Id}, _From, #state { conn = C } = State) ->
     Reply = ex_refresh_player(C, Id),
     {reply, Reply, State};
+handle_call({player_rank, Player}, _From, #state { conn = C } = State) ->
+    Reply = ex_player_rank(C, Player),
+    {reply, Reply, State};
 handle_call({tournament_matches, T}, _From, #state { conn = C } = State) ->
     Reply = ex_tournament_matches(C, T),
     {reply, Reply, State};
@@ -219,11 +226,18 @@ ex_all_players(C) ->
           "SELECT id, name FROM player"),
     {ok, Players}.
 
+ex_player_rank(C, Player) ->
+  {ok, _, Entries} =
+    pgsql:equery(
+      C,
+      "SELECT map, rank, rd FROM player_rankings WHERE player = $1", [Player]),
+  {ok, Entries}.
+
 ex_tournament_matches(C, T) ->
     {ok, _, Matches} =
         pgsql:equery(
           C,
-          "SELECT winner, loser FROM duel_match dm, tournament t "
+          "SELECT winner, loser, map FROM duel_match dm, tournament t "
           "WHERE t.id = $1 AND played BETWEEN t.t_from and t.t_to",
           [T]),
     Matches.
