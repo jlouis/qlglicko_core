@@ -21,6 +21,7 @@
          select_player/1,
          players_to_refresh/0,
          player_rank/1,
+         player_match_streak/1,
          matches_to_fetch/0,
          matches_to_analyze/0,
          mark_analyzed/1,
@@ -74,6 +75,9 @@ mark_analyzed(Id) ->
 
 players_to_refresh() ->
     call(players_to_refresh).
+
+player_match_streak(Player) ->
+    call({player_match_streak, Player}).
 
 player_rank(Player) ->
     call({player_rank, Player}).
@@ -166,6 +170,9 @@ handle_call({store_duel_match, Id, MatchRec}, _From,
             #state { conn = C} = State) ->
     Reply = ex_store_duel_match(C, Id, MatchRec),
     {reply, Reply, State};
+handle_call({player_match_streak, Player}, _From, #state { conn = C } = State) ->
+    Reply = ex_player_match_streak(C, Player),
+    {reply, Reply, State};
 handle_call({remove_active, Id}, _From, #state { conn = C } = State) ->
     Reply = ex_remove_active_player(C, Id),
     {reply, Reply, State};
@@ -248,6 +255,14 @@ ex_matches_to_fetch(C) ->
 ex_players_to_refresh(C) ->
     pgsql:equery(C, "SELECT id,name,age_days FROM players_to_update "
                     "ORDER BY age_days DESC LIMIT 66").
+
+ex_player_match_streak(C, Name) ->
+    {ok, _, Matches} = pgsql:equery(C,
+      "SELECT map, res, played FROM player_match_streak "
+      "WHERE name = $1 "
+      "ORDER BY played DESC "
+      "LIMIT 150", [Name]),
+    {ok, Matches}.
 
 ex_select_player(C, Name) ->
     pgsql:equery(C, "SELECT id,name FROM player WHERE name = $1",
