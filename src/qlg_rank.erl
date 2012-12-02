@@ -1,12 +1,11 @@
 -module(qlg_rank).
 
--export([rank/1, rank/2, rank/3,
+-export([rank/3,
          expected_score/4,
 	run/1, profile/0,
          read/2,
          predict/2,
          rate_game/2,
-         write_csv/2,
          matrix/1,
          write_player_csv/2,
          write_matrix/2,
@@ -122,22 +121,23 @@ profile() ->
     eprof:analyze().
 
 run(Idxs) ->
-    {ok, Db} = rank(Idxs, glicko2:configuration(397, 0.07, 0.3)),
-    write_csv("rankings.csv", Db).
+    Fd = setup_file("rankings.csv"),   
+    {ok, Db} = rank(Idxs, glicko2:configuration(397, 0.07, 0.3), Fd),
+    file:close(Fd),
+    {ok, Db}.
 
-rank(Idxs) ->
-    rank(Idxs, glicko2:configuration(350, 0.06, 0.5)).
-
-rank(Idxs, Conf) ->
+rank(Idxs, Conf, Fd) ->
     PDB = dict:new(),
-    rank(PDB, Idxs, Conf).
+    rank_tourney(PDB, Idxs, Conf, Fd).
 
-rank(DB, [I | Next], Conf) ->
+rank_tourney(DB, [I | Next], Conf, Fd) ->
     OldPlayers = dict:fetch_keys(DB),
     {ok, Players, _L} = init_players(I),
     NewDB = rank(DB, lists:usort(OldPlayers ++ Players), I, Conf),
-    rank(dict:from_list(NewDB), Next, Conf);
-rank(DB, [], _Conf) ->
+    TourneyDatabase = dict:from_list(NewDB),
+    write_csv_file(Fd, TourneyDatabase, I),
+    rank_tourney(TourneyDatabase, Next, Conf, Fd);
+rank_tourney(DB, [], _Conf, _Fd) ->
     {ok, DB}.
 
 rank(DB, [Player | Next], Idx, Conf) ->
@@ -232,14 +232,18 @@ write_player_csv(Fn, Players) ->
                      [[io_lib:format("~s,~f,~f,~f\n", [P, R, RD, Sigma])
                        || {player, P, R, RD, Sigma} <- Players]]]).
 
-write_csv(Fname, Db) ->
-    Data =
-        dict:fold(fun(Id, Ranking, Acc) ->
-                          [format_player(Id, Ranking), $\n | Acc]
-                  end,
-                  [], Db),
-    file:write_file(Fname, [["Player,Map,R,RD,Sigma", $\n] | Data]).
+setup_file(Fname) ->
+    {ok, Fd} = file:open(Fname, [write]),
+    ok = file:write(Fd, ["Tournament,Player,Map,R,RD,Sigma", $\n]),
+    Fd.
 
+write_csv_file(Fd, Db, Idx) ->
+   T = integer_to_list(Idx),
+   Data =
+     dict:fold(fun(Id, R, Acc) -> [T, $,, format_player(Id, R), $\n | Acc] end, [], Db),
+   ok = file:write(Fd, Data),
+   lager:info("Wrote tournament ~B", [Idx]),
+   ok.
 
 format_player({Id, Map}, {R, Rd, S}) ->
     [{Id, Name}] = ets:lookup(qlg_players, Id),

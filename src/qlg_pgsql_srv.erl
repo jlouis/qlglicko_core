@@ -237,7 +237,9 @@ ex_player_rank(C, Player) ->
   {ok, _, Entries} =
     pgsql:equery(
       C,
-      "SELECT map, rank, rd FROM player_rankings WHERE player ILIKE $1", [Player]),
+      "SELECT tournament, map, rank, rd FROM player_rankings "
+      "WHERE player ILIKE $1 "
+      "ORDER BY tournament ASC", [Player]),
   {ok, Entries}.
 
 ex_tournament_matches(C, T) ->
