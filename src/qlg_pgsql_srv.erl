@@ -237,7 +237,7 @@ ex_player_rank(C, Player) ->
   {ok, _, Entries} =
     pgsql:equery(
       C,
-      "SELECT map, rank, rd FROM player_rankings WHERE player = $1", [Player]),
+      "SELECT map, rank, rd FROM player_rankings WHERE player ILIKE $1", [Player]),
   {ok, Entries}.
 
 ex_tournament_matches(C, T) ->
@@ -259,7 +259,7 @@ ex_players_to_refresh(C) ->
 ex_player_match_streak(C, Name) ->
     {ok, _, Matches} = pgsql:equery(C,
       "SELECT map, res, played FROM player_match_streak "
-      "WHERE name = $1 "
+      "WHERE name ILIKE $1 "
       "ORDER BY played DESC "
       "LIMIT 150", [Name]),
     {ok, Matches}.
