@@ -89,7 +89,6 @@ find_weeks(Now, K) when K >= 7 ->
 fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
     ok = lager:debug("Refreshing player ~s, ~p days behind", [Name, Age]),
     WeeksToFetch = find_weeks(Age),
-    ok = lager:debug("Weeks to fetch for player ~s: ~p", [Name, WeeksToFetch]),
     case ql_fetch:player_matches(Name, WeeksToFetch) of
       {ok, []} ->
         case qlg_pgsql_srv:alive_check(Id) of
