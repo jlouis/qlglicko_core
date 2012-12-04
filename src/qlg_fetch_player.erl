@@ -39,16 +39,18 @@ handle_call(_Request, _From, State) ->
 %% @private
 handle_cast(run, State) ->
     %% @todo handle errors and overloads
-    case jobs:ask(ql_fetch) of
-        {ok, _Opaque} ->
+    case sv_queue:ask(ql_fetch, sv:timestamp()) of
+        {go, Ref} ->
             case qlg_overload:ask() of
                 yes ->
                     run_fetch_job(State);
                 no ->
                     ok
             end,
-            {stop, normal, State}
-    end;
+            sv_queue:done(ql_fetch, Ref);
+         {error, _Reason} -> ok
+    end,
+    {stop, normal, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
