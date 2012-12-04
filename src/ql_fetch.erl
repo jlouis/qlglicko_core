@@ -85,7 +85,7 @@ request(URL) ->
                 true ->
                     ok = lager:info("Overload at QL Site"),
                     qlg_overload:overload(),
-                    jobs_sampler:tell_sampler(response_time, overload);
+                    ok;
                 false ->
                     ok
             end,
@@ -97,7 +97,6 @@ request(URL) ->
         {ok, Otherwise} ->
             ok = lager:info("Timeouts, assuming overload"),
             qlg_overload:overload(),
-            jobs_sampler:tell_sampler(response_time, overload),
             {error, {status_code, Otherwise}};
         {error, Reason} ->
             lager:info("HTTP request error: ~p", [Reason]),
