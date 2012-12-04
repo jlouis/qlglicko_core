@@ -81,8 +81,7 @@ operating(ask, _From, #state { fuse = 75 } = State) ->
 operating(ask, _From, #state { fuse = blown }) ->
     exit(invariant_broken);
 operating(ask, _From, #state { fuse = K } = State) ->
-    Reply = draw(),
-    {reply, Reply, operating, State#state { fuse = K+1 }};
+    {reply, yes, operating, State#state { fuse = K+1 }};
 operating(overload, _From, #state { overload_count = 2 } = State) ->
     gen_fsm:start_timer(?OVERLOAD_TIME, reset_overload),
     lager:info("QL overloaded, 5 minutes rest"),
@@ -132,11 +131,3 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 
 reset(#state { } = State) ->
     State#state { fuse = 0, overload_count = 0 }.
-
-draw() ->
-    case crypto:rand_uniform(0, 4) of
-        0 ->
-            yes;
-        _ ->
-            no
-    end.

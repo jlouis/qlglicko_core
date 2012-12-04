@@ -9,7 +9,7 @@
                   crypto,
                   os_mon,
                   lager,
-                  jobs,
+                  safetyvalve,
                   inets,
                   gproc,
                   epgsql
