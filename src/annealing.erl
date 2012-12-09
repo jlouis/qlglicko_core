@@ -1,10 +1,10 @@
 -module(annealing).
--compile(inline).
+-compile([{native, o3}, inline]).
 -compile({inline_size, 50}).
 
 -export([anneal/0, anneal/2]).
 
--define(KMAX, 50).
+-define(KMAX, 500).
 -define(EMAX, 0.000000000001).
 
 anneal() ->
@@ -108,15 +108,15 @@ clamp(_, _, X)                -> X.
 neighbour(S) ->
     {RD, Sigma, Tau} = glicko2:read_config(S),
     Cnf = glicko2:configuration(
-            clamp(15, 450, walk_rd(RD)),
-            clamp(0.03, 0.08, walk_sigma(Sigma)),
-            clamp(0.3, 1.2, walk_tau(Tau))),
+            clamp(15, 500, walk_rd(RD)),
+            clamp(0.02, 0.08, walk_sigma(Sigma)),
+            clamp(0.2, 1.2, walk_tau(Tau))),
     Cnf.
 
 p(E, NewE, _T) when NewE < E -> 1.0;
 p(E, NewE, T ) -> math:exp((E - NewE) / T).
 
 e(S) ->
-    {ok, Db} = qlg_rank:rank(lists:seq(1,12), S),
-    qlg_rank:predict(Db, 13).
+    {ok, Db} = qlg_rank:rank(lists:seq(1,30), S, dummy),
+    qlg_rank:predict(Db, 31).
 

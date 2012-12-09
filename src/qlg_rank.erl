@@ -2,26 +2,26 @@
 
 -export([rank/3,
          expected_score/4,
-	run/1, profile/0,
-         read/2,
+	run/1, eprofile/0, fprofile/0,
          predict/2,
          rate_game/2,
          matrix/1,
          write_player_csv/2,
-         write_matrix/2,
-         process_tourney/3]).
+         write_matrix/2]).
 
--export([load_keep/0, unload_all/0, loader_looper/0]).
+-export([load_keep/1, unload_all/0, loader_looper/0]).
+-compile([{native, o3}, inline]).
 
 %% Loading
 %% ----------------------------------------------------------------------
 
 unload_all() ->
-    ets:delete(qlg_matches).
+    ets:delete(qlg_matches_c),
+    ets:delete(qlg_new_players).
 
-load_keep() ->
+load_keep(Idxs) ->
     spawn(fun() ->
-                  {ok, Matches, Players} = load_all(),
+                  {ok, Matches, Players} = load_all(Idxs),
                   lager:notice("Loaded ~B matches and ~B players", [Matches, Players]),
                   loader_looper()
           end).
@@ -34,12 +34,47 @@ loader_looper() ->
             ?MODULE:loader_looper()
     end.
         
-load_all() ->
+load_all(Idxs) ->
     {ok, Ts} = qlg_pgsql_srv:all_tournaments(),
     load_tournaments(Ts),
     {ok, Players} = qlg_pgsql_srv:all_players(),
     load_players(Players),
-    {ok, ets:info(qlg_matches, size), ets:info(qlg_players, size)}.
+    setup_new_player_table(Idxs),
+    coalesce_match_table(),
+    {ok, ets:info(qlg_matches_c, size), ets:info(qlg_players, size)}.
+
+setup_new_player_table(Idxs) ->
+    ets:new(qlg_new_players, [named_table, public, {read_concurrency, true}, set]),
+    setup_new_player_table_m(Idxs, sets:new()),
+    ok.
+    
+setup_new_player_table_m([], _S) ->
+    ok;
+setup_new_player_table_m([Idx | Next], S) ->
+    NewPlayers = sets:from_list([P || [P] <- ets:match(qlg_matches, {{Idx, {'$1', '_'}}, '_'})]),
+    Added = sets:subtract(NewPlayers, S),
+    ets:insert_new(qlg_new_players, {Idx, sets:to_list(Added)}),
+    lager:info("Tourney ~B adds ~B new players", [Idx, sets:size(Added)]),
+    setup_new_player_table_m(Next, sets:union(S, NewPlayers)).
+
+coalesce_match_table() ->
+    lager:info("Coalescing"),
+    ets:new(
+        qlg_matches_c,
+        [named_table, public, {read_concurrency, true}, set, protected]),
+    coalesce(ets:match(qlg_matches, {'$1', '_'}, 20000)),
+    ets:delete(qlg_matches),
+    ok.
+    
+coalesce('$end_of_table') -> ok;
+coalesce({Keys, Cont}) ->
+    [begin
+        Opps = ets:lookup_element(qlg_matches, K, 2),
+        ets:insert(qlg_matches_c, {K, Opps})
+     end || [K] <- lists:usort(Keys)],
+    io:format("."),
+    coalesce(ets:match(Cont)).
+
 
 load_tournaments(Ts) ->
     ets:new(qlg_matches,
@@ -71,17 +106,14 @@ load_players(Players) ->
 %% ----------------------------------------------------------------------
 
 init_players(Idx) ->
-    Players = ets:match(qlg_matches, {{Idx, {'$1', '_'}}, '_'}),
-    S = lists:usort([P || [P] <- Players]),
-    {ok, S, length(S)}.
+    Players = ets:lookup_element(qlg_new_players, Idx, 2),
+    {ok, Players}.
 
-player_ranking(DB, P, _Idx, Conf) ->
+player_ranking(DB, P, Conf) ->
     case dict:find(P, DB) of
         error ->
             {RD, Sigma, _} = glicko2:read_config(Conf),
             R = 1500,
-            %Played = matches_played(Idx, P, w) + matches_played(Idx, P, l),
-            %IRD = RD / math:sqrt(Played) + 25,
             {P, R, RD, Sigma};
         {ok, {R, RD, Sigma}} ->
             {P, R, RD, Sigma}
@@ -92,38 +124,52 @@ clamp(_,  X, Hi) when X > Hi -> Hi;
 clamp(_,  X, _ ) -> X.
 
 
-rank_player(Db, Player, Idx, Conf) ->
-    {Player, R, RD, Sigma} = player_ranking(Db, Player, Idx, Conf),
-        Wins = [begin
-                {_P, LR, LRD, _Sigma} = player_ranking(Db, Opp, Idx, Conf),
+rank_player(Db, Player, {R, RD, Sigma}, Idx, Conf) ->
+    WinOpp =
+    	try ets:lookup_element(qlg_matches_c, {Idx, {Player, w}}, 2) of
+    		V1 -> V1
+    	catch _:_ -> []
+    	end,
+    Wins = [begin
+                {_P, LR, LRD, _Sigma} = player_ranking(Db, Opp, Conf),
                 {LR, LRD, 1}
-            end || {_, Opp} <- ets:lookup(qlg_matches, {Idx, {Player, w}})],
+            end || Opp <- WinOpp ],
+    LossOpp =
+      	try ets:lookup_element(qlg_matches_c, {Idx, {Player, l}}, 2) of
+    		V2 -> V2
+    	catch _:_ -> []
+    	end,
     Losses = [begin
-                  {_P, WR, WRD, _Sigma} = player_ranking(Db, Opp, Idx, Conf),
+                  {_P, WR, WRD, _Sigma} = player_ranking(Db, Opp, Conf),
                   {WR, WRD, 0}
-              end || {_, Opp} <- ets:lookup(qlg_matches, {Idx, {Player, l}})],
+              end || Opp <- LossOpp ],
     case Wins ++ Losses of
         [] ->
             RD1 = glicko2:phi_star(RD, Sigma),
-            {Player, {R, RD1, Sigma}};
+            {R, RD1, Sigma};
         Opponents ->
             {R1, RD1, Sigma1} =
                 glicko2:rate(R, RD, Sigma, Opponents, Conf),
-            {Player, {clamp(0.0, R1, 3000.0),
+            {clamp(0.0, R1, 3000.0),
                       clamp(0.0, RD1, 400.0),
-                      clamp(0.0, Sigma1, 0.1)}}
+                      clamp(0.0, Sigma1, 0.1)}
     end.
 
-profile() ->
-    eprof:profile(fun() -> qlg_rank:run(lists:seq(1,10)) end),
-    eprof:stop_profiling(),
-    eprof:log("eprof.run"),
-    eprof:analyze().
+eprofile() ->
+	eprof:profile(fun() -> qlg_rank:run(lists:seq(1,41)) end),
+	eprof:stop_profiling(),
+	eprof:log("eprof.run"),
+	eprof:analyze().
+
+fprofile() ->
+    fprof:apply(qlg_rank, run, [lists:seq(1,2)]),
+    fprof:profile(),
+    fprof:analyse([{dest, "fprof.out"}, {cols, 150}, details]).
 
 run(Idxs) ->
-    Fd = setup_file("rankings.csv"),   
-    {ok, Db} = rank(Idxs, glicko2:configuration(397, 0.07, 0.3), Fd),
-    file:close(Fd),
+    %Fd = setup_file("rankings.csv"),   
+    {ok, Db} = rank(Idxs, glicko2:configuration(397, 0.07, 0.3), dummy),
+    %file:close(Fd),
     {ok, Db}.
 
 rank(Idxs, Conf, Fd) ->
@@ -131,19 +177,18 @@ rank(Idxs, Conf, Fd) ->
     rank_tourney(PDB, Idxs, Conf, Fd).
 
 rank_tourney(DB, [I | Next], Conf, Fd) ->
-    OldPlayers = dict:fetch_keys(DB),
-    {ok, Players, _L} = init_players(I),
-    NewDB = rank(DB, lists:usort(OldPlayers ++ Players), I, Conf),
-    TourneyDatabase = dict:from_list(NewDB),
-    write_csv_file(Fd, TourneyDatabase, I),
-    rank_tourney(TourneyDatabase, Next, Conf, Fd);
+    {RD, Sigma, _} = glicko2:read_config(Conf),
+    {ok, Players} = init_players(I),
+    NewPlayerDB = dict:from_list([{K, {1500, RD, Sigma}} || K <- Players]),
+    F = fun(_K, V1, _V2) -> V1 end,
+    UpdatedDB = rank_player_dict(dict:merge(F, DB, NewPlayerDB), I, Conf),
+    %write_csv_file(Fd, UpdatedDB, I),
+    rank_tourney(UpdatedDB, Next, Conf, Fd);
 rank_tourney(DB, [], _Conf, _Fd) ->
     {ok, DB}.
 
-rank(DB, [Player | Next], Idx, Conf) ->
-    Rank = rank_player(DB, Player, Idx, Conf),
-    [Rank | rank(DB, Next, Idx, Conf)];
-rank(_DB, [], _Idx, _) -> [].
+rank_player_dict(DB, Idx, Conf) ->
+    dict:map(fun(Player, Rank) -> rank_player(DB, Player, Rank, Idx, Conf) end, DB).
 
 %% Prediction
 %% ----------------------------------------------------------------------
@@ -158,8 +203,8 @@ rank(_DB, [], _Idx, _) -> [].
 %% configuration parameters for the system.</p>
 %% @end
 predict(DB, Idx) ->
-    Matches = ets:match(qlg_matches, {{Idx, {'$1', w}}, '$2'}),
-    Predicted = predict_matches(DB, Matches),
+    Matches = ets:match(qlg_matches_c, {{Idx, {'$1', w}}, '$2'}),
+    Predicted = predict_matches(DB, [[W, L] || [W, M] <- Matches, L <- M]),
     lists:sum(Predicted) / length(Predicted).
 
 
@@ -172,25 +217,6 @@ q() ->
 expected_g(RD) ->
     1 / (math:sqrt(1 + 3*q()*q()*RD*RD/(math:pi()*math:pi()))).
 
-process_tourney(Source, DestPrefix, Db) ->
-    {Players, _Groups} = read(Source, Db),
-    write_matrix(DestPrefix ++ "_matrix.csv", Players),
-    write_player_csv(DestPrefix ++ "_rankings.csv", Players),
-    ok.
-
-lookup_players(Gps, Db) ->
-    Players = lists:concat([Ps || {group, _, Ps} <- Gps]),
-    [lookup_rating(P, Db) || P <- Players].
-
-lookup_rating(P, Db) ->
-    case ets:match(qlg_players, {'$1', iolist_to_binary(P)}) of
-        [[Id]] ->
-            {R, RD, Sigma} = dict:fetch(Id, Db),
-            {player, P, R, RD, Sigma};
-        [] ->
-            {player, P, 1500.0, 350.0, 0.06}
-    end.
-
 expected_score({player, _A, RA, RDA, _}, {player, _B, RB, RDB, _}) ->
     expected_score(RA, RDA, RB, RDB).
 
@@ -198,27 +224,18 @@ expected_score(WR, WRD, LR, LRD) ->
     GVal = expected_g(math:sqrt(WRD*WRD + LRD*LRD)),
     1 / (1 + math:pow(10, -GVal * (WR - LR) / 400)).
 
-player_rating(P, DB) ->
-    {R, RD, _} = dict:fetch(P, DB),
-    {R, RD}.
-
 predict_matches(_Db, []) -> [];
 predict_matches(Db, [[Winner, Loser] | Next]) ->
-    try
-        {WR, WRD} = player_rating(Winner, Db),
-        {LR, LRD} = player_rating(Loser, Db),
-        E = expected_score(WR, WRD, LR, LRD),
-        [rate_game(1, E) | predict_matches(Db, Next)]
-    catch
-        _:_ ->
-            predict_matches(Db, Next)
+    case dict:find(Winner, Db) of
+      error -> predict_matches(Db, Next);
+      {ok, {WR, WRD, _}} ->
+        case dict:find(Loser, Db) of
+          error -> predict_matches(Db, Next);
+          {ok, {LR, LRD, _}} ->
+            E = expected_score(WR, WRD, LR, LRD),
+            [rate_game(1, E) | predict_matches(Db, Next)]
+        end
     end.
-
-read(Fn, Db) ->
-    {ok, [_Players, Groups]} = file:consult(Fn),
-    {lookup_players(Groups, Db),
-     Groups}.
-
 
 %% Output formatting
 %% ----------------------------------------------------------------------
