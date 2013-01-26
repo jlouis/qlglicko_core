@@ -94,6 +94,10 @@ request(URL) ->
             lager:info("Got 502 Bad Gateway"),
             qlg_overload:timeout(),
             {error, {status_code, SC}};
+        {ok, {{_HttpVer, 504, _RPhrase}, _Headers, _Body} = SC} ->
+            lager:info("Got 504 Gateway timeout"),
+            qlg_overload:timeout(),
+            {error, {status_code, SC}};
         {ok, Otherwise} ->
             ok = lager:info("Timeouts, assuming overload"),
             qlg_overload:overload(),
