@@ -167,9 +167,14 @@ fprofile() ->
     fprof:analyse([{dest, "fprof.out"}, {cols, 150}, details]).
 
 run(Idxs) ->
-    %Fd = setup_file("rankings.csv"),   
-    {ok, Db} = rank(Idxs, glicko2:configuration(397, 0.07, 0.3), dummy),
-    %file:close(Fd),
+    run(Idxs, "rankings.csv").
+
+run(Idxs, no_file) ->
+    rank(Idxs, glicko2:configuration(413, 0.08, 0.345), no_file);
+run(Idxs, FName) ->
+    Fd = setup_file(FName),   
+    {ok, Db} = rank(Idxs, glicko2:configuration(413, 0.08, 0.345), Fd),
+    file:close(Fd),
     {ok, Db}.
 
 rank(Idxs, Conf, Fd) ->
@@ -182,7 +187,7 @@ rank_tourney(DB, [I | Next], Conf, Fd) ->
     NewPlayerDB = dict:from_list([{K, {1500, RD, Sigma}} || K <- Players]),
     F = fun(_K, V1, _V2) -> V1 end,
     UpdatedDB = rank_player_dict(dict:merge(F, DB, NewPlayerDB), I, Conf),
-    %write_csv_file(Fd, UpdatedDB, I),
+    write_csv_file(Fd, UpdatedDB, I),
     rank_tourney(UpdatedDB, Next, Conf, Fd);
 rank_tourney(DB, [], _Conf, _Fd) ->
     {ok, DB}.
@@ -203,11 +208,15 @@ rank_player_dict(DB, Idx, Conf) ->
 %% configuration parameters for the system.</p>
 %% @end
 predict(DB, Idx) ->
-    Matches = ets:match(qlg_matches_c, {{Idx, {'$1', w}}, '$2'}),
+    Matches = predict_get_matches(Idx),
     Predicted = predict_matches(DB, [[W, L] || [W, M] <- Matches, L <- M]),
     lists:sum(Predicted) / length(Predicted).
 
-
+predict_get_matches([Idx | Next]) ->
+	Ms = ets:match(qlg_matches_c, {{Idx, {'$1', w}}, '$2'}),
+	Ms ++ predict_get_matches(Next);
+predict_get_matches([]) -> [].
+	
 rate_game(Y, E) ->
     -(Y * math:log10(E) + (1 - Y)*math:log10(1-E)).
 
@@ -254,6 +263,7 @@ setup_file(Fname) ->
     ok = file:write(Fd, ["Tournament,Player,Map,R,RD,Sigma", $\n]),
     Fd.
 
+write_csv_file(no_file, _Db, _Idx) -> ok;
 write_csv_file(Fd, Db, Idx) ->
    T = integer_to_list(Idx),
    Data =

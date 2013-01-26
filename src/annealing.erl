@@ -8,7 +8,7 @@
 -define(EMAX, 0.000000000001).
 
 anneal() ->
-    S0 = glicko2:configuration(200, 0.06, 0.45),
+    S0 = glicko2:configuration(200, 0.06, 0.5),
     anneal(S0).
 
 anneal(S0) ->
@@ -117,6 +117,6 @@ p(E, NewE, _T) when NewE < E -> 1.0;
 p(E, NewE, T ) -> math:exp((E - NewE) / T).
 
 e(S) ->
-    {ok, Db} = qlg_rank:rank(lists:seq(1,30), S, dummy),
-    qlg_rank:predict(Db, 31).
+    {ok, Db} = qlg_rank:rank(lists:seq(1,40), S, no_file),
+    qlg_rank:predict(Db, [41, 42, 43]).
 
