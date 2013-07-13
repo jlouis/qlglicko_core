@@ -1,26 +1,15 @@
-.PHONY: deps test
+PROJECT = qlglicko_core
 
-all: deps compile
+ERLC_OPTS = +debug_info '+{parse_transform, lager_transform}'
 
-compile:
-	rebar compile
+DEPS = lager poolboy epgsql gproc jsx safetyvalve sfmt glicko2
+dep_lager = git://github.com/basho/lager.git 2.0.0
+dep_poolboy = git://github.com/devinus/poolboy.git master
+dep_epgsql = git://github.com/wg/epgsql.git master
+dep_gproc  = git://github.com/uwiger/gproc.git master
+dep_jsx    = git://github.com/talentdeficit/jsx.git master
+dep_safetyvalve =  git://github.com/jlouis/safetyvalve.git master
+dep_sfmt = git://github.com/jj1bdx/sfmt-erlang.git master
+dep_glicko2 = git://github.com/jlouis/erl-glicko2.git master
 
-deps:
-	rebar get-deps
-
-clean:
-	rebar clean
-	rm -rf test.*-temp-data
-
-distclean: clean 
-	rebar delete-deps
-
-test: all
-	rebar skip_deps=true eunit
-
-docs:
-	rebar skip_deps=true doc
-
-dialyzer: compile
-	@dialyzer -Wno_return -c apps/riak_kv/ebin
-
+include erlang.mk
