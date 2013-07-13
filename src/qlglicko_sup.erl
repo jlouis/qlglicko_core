@@ -26,6 +26,7 @@ init([]) ->
     PgsqlSrv =
         {qlg_pgsql_srv, {qlg_pgsql_srv, start_link, []},
          permanent, 5000, worker, [qlg_pgsql_srv]},
+    DBPools = make_pools(),
     OverloadDetect =
         {qlg_overload, {qlg_overload, start_link, []},
          permanent, 5000, worker, [qlg_overload]},
@@ -41,12 +42,30 @@ init([]) ->
     Timer =
         {qlglicko_timer, {qlglicko_timer, start_link, []},
          permanent, 5000, worker, [qlglicko_timer]},
-    {ok, { {one_for_all, 3, 3600}, [OverloadDetect,
-                                    PgsqlSrv,
-                                    FetchPlayerPool,
-                                    FetchMatchPool,
-                                    MatchAnalyzer,
-                                    Timer
-                                    ]} }.
+    {ok, { {one_for_all, 3, 3600},
+           [OverloadDetect,
+            PgsqlSrv]
+           ++ DBPools
+           ++ [FetchPlayerPool,
+               FetchMatchPool,
+               MatchAnalyzer,
+               Timer
+              ]} }.
 
+
+%% --------------------------------------------------
+make_pools() ->
+    Pools = application:get_env(qlglicko_core, db_pools),
+    lists:map(
+      fun({Name, PoolConfig, WorkerConfig}) ->
+              poolboy:child_spec(
+                Name,
+                [{name, {local, Name}},
+                 {worker_module, qlg_pg_worker}] ++ PoolConfig,
+                WorkerConfig)
+      end,
+      Pools).
+
+
+             
 
