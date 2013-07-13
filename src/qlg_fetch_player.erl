@@ -100,9 +100,9 @@ fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
               alive ->
                   ok;
               account_closed ->
-                  {ok, _} = qlg_pgsql_srv:add_to_hall_of_fame(Id, Name),
-                  {ok, _} = qlg_pgsql_srv:remove_active_player(Id),
-                  lager:debug("Player account ~s closed, player moved to Hall of fame"),
+                  %{ok, _} = qlg_pgsql_srv:add_to_hall_of_fame(Id, Name),
+                  %{ok, _} = qlg_pgsql_srv:remove_active_player(Id),
+                  %lager:debug("Player account ~s closed, player moved to Hall of fame"),
                   ok
             end;
           false ->

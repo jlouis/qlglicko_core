@@ -12,16 +12,14 @@
 %% API
 -export([start_link/0]).
 -export([store_match/2,
-	add_to_hall_of_fame/2,
-	alive_check/1,
+         add_to_hall_of_fame/2,
+         alive_check/1,
          all_tournaments/0,
          all_players/0,
          bump_alive/1,
          tournament_matches/1,
          select_player/1,
          players_to_refresh/0,
-         player_rank/1,
-         player_match_streak/1,
          matches_to_fetch/0,
          matches_to_analyze/0,
          mark_analyzed/1,
@@ -75,12 +73,6 @@ mark_analyzed(Id) ->
 
 players_to_refresh() ->
     call(players_to_refresh).
-
-player_match_streak(Player) ->
-    call({player_match_streak, Player}).
-
-player_rank(Player) ->
-    call({player_rank, Player}).
 
 should_player_be_refreshed(Id) ->
     call({should_player_be_refreshed, Id}).
@@ -157,9 +149,6 @@ handle_call({mk_player, Name}, _From, #state { conn = C } = State) ->
 handle_call({refresh_player, Id}, _From, #state { conn = C } = State) ->
     Reply = ex_refresh_player(C, Id),
     {reply, Reply, State};
-handle_call({player_rank, Player}, _From, #state { conn = C } = State) ->
-    Reply = ex_player_rank(C, Player),
-    {reply, Reply, State};
 handle_call({tournament_matches, T}, _From, #state { conn = C } = State) ->
     Reply = ex_tournament_matches(C, T),
     {reply, Reply, State};
@@ -169,9 +158,6 @@ handle_call({store_match, Id, Blob}, _From, #state { conn = C } = State) ->
 handle_call({store_duel_match, Id, MatchRec}, _From,
             #state { conn = C} = State) ->
     Reply = ex_store_duel_match(C, Id, MatchRec),
-    {reply, Reply, State};
-handle_call({player_match_streak, Player}, _From, #state { conn = C } = State) ->
-    Reply = ex_player_match_streak(C, Player),
     {reply, Reply, State};
 handle_call({remove_active, Id}, _From, #state { conn = C } = State) ->
     Reply = ex_remove_active_player(C, Id),
@@ -233,15 +219,6 @@ ex_all_players(C) ->
           "SELECT id, name FROM player"),
     {ok, Players}.
 
-ex_player_rank(C, Player) ->
-  {ok, _, Entries} =
-    pgsql:equery(
-      C,
-      "SELECT tournament, map, rank, rd FROM player_rankings "
-      "WHERE player ILIKE $1 "
-      "ORDER BY tournament ASC", [Player]),
-  {ok, Entries}.
-
 ex_tournament_matches(C, T) ->
     {ok, _, Matches} =
         pgsql:equery(
@@ -257,14 +234,6 @@ ex_matches_to_fetch(C) ->
 ex_players_to_refresh(C) ->
     pgsql:equery(C, "SELECT id,name,age_days FROM players_to_update "
                     "ORDER BY age_days DESC LIMIT 66").
-
-ex_player_match_streak(C, Name) ->
-    {ok, _, Matches} = pgsql:equery(C,
-      "SELECT map, res, played FROM player_match_streak "
-      "WHERE name ILIKE $1 "
-      "ORDER BY played DESC "
-      "LIMIT 150", [Name]),
-    {ok, Matches}.
 
 ex_select_player(C, Name) ->
     pgsql:equery(C, "SELECT id,name FROM player WHERE name = $1",
