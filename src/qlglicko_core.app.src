@@ -9,11 +9,14 @@
                   crypto,
                   os_mon,
                   lager,
-                  safetyvalve,
                   inets,
+                  safetyvalve,
                   gproc,
-                  epgsql
+                  epgsql,
+                  poolboy,
+                  jsx
                  ]},
+  {modules, []},
   {mod, { qlglicko_app, []}},
   {env, []}
  ]}.
