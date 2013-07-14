@@ -55,7 +55,7 @@ init([]) ->
 
 %% --------------------------------------------------
 make_pools() ->
-    Pools = application:get_env(qlglicko_core, db_pools),
+    {ok, Pools} = application:get_env(qlglicko_core, db_pools),
     lists:map(
       fun({Name, PoolConfig, WorkerConfig}) ->
               poolboy:child_spec(
