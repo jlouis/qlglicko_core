@@ -1,6 +1,10 @@
 -module(qlg_db).
 
--export([player_stats/1]).
+-export([
+         declare_match/1,
+         player_stats/1,
+         store_match/2
+        ]).
 
 %% External API
 %% --------------------------------------------------
@@ -10,13 +14,22 @@ player_stats(Player) ->
     {ok, [{entries, Entries},
           {streaks, Streaks}]}.
 
+store_match(Id, Data) ->
+    {ok, _, Entries} = equery(processing, "SELECT processing.store_match($1, $2)", [Id, Data]),
+    {ok, Entries}.
+
+declare_match(Id) ->
+    {ok, _, Entries} =
+        equery(processing, "SELECT processing.declare_match($1)", [Id]),
+    {ok, Entries}.
+
 %% Queries
 %% --------------------------------------------------
 player_rank(Player) ->
     {ok, _, Entries} =
         equery(web,
                "SELECT tournament, map, rank, rd FROM web.player_rankings "
-               "WHERE player ILIKE $1 "
+               "WHERE player = $1 "
                "ORDER BY tournament ASC",
                [Player]),
     {ok, Entries}.
