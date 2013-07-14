@@ -38,7 +38,7 @@ player_match_streak(Player) ->
     {ok, _, Entries} =
         equery(web,
                "SELECT map, res, played FROM web.player_match_streak "
-               "WHERE name ILIKE $1 "
+               "WHERE name = $1 "
                "ORDER BY played DESC "
                "LIMIT 150", [Player]),
     {ok, Entries}.
