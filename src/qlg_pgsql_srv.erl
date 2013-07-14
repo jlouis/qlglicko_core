@@ -92,9 +92,6 @@ alive_check(Id) ->
 bump_alive(Id) ->
     call({bump_alive, Id}).
 
-store_match(Id, Blob) when Blob == null;
-                           is_binary(Blob) ->
-    call({store_match, Id, Blob});
 store_match(Id, #duel_match{} = DM) ->
     call({store_duel_match, Id, DM}).
 
@@ -151,9 +148,6 @@ handle_call({refresh_player, Id}, _From, #state { conn = C } = State) ->
     {reply, Reply, State};
 handle_call({tournament_matches, T}, _From, #state { conn = C } = State) ->
     Reply = ex_tournament_matches(C, T),
-    {reply, Reply, State};
-handle_call({store_match, Id, Blob}, _From, #state { conn = C } = State) ->
-    Reply = ex_store_match(C, Id, Blob),
     {reply, Reply, State};
 handle_call({store_duel_match, Id, MatchRec}, _From,
             #state { conn = C} = State) ->
@@ -278,26 +272,6 @@ ex_add_to_hall_of_fame(C, Id, Name) ->
     	"DELETE FROM hall_of_fame WHERE id = $1 AND name = $2", [Id, Name]),
     pgsql:equery(C,
          "INSERT INTO hall_of_fame (id, name, entry) VALUES ($1, $2, now())", [Id, Name]).
-
-knows_match(C, Id) ->
-    case pgsql:equery(C, "SELECT id FROM raw_match WHERE id = $1", [Id]) of
-        {ok, _, []} ->
-            false;
-        {ok, _, [_|_]} ->
-            true
-    end.
-
-ex_store_match(C, Id, null) ->
-    case knows_match(C, Id) of
-        true ->
-            {ok, 0};
-        false ->
-            {ok, 1} = pgsql:equery(C, "INSERT INTO raw_match (id, content)"
-                                   "VALUES ($1, NULL)", [Id])
-    end;
-ex_store_match(C, Id, B) when is_binary(B) ->
-    {ok, 1} = pgsql:equery(C, "UPDATE raw_match SET content = $2 WHERE id = $1",
-                           [Id, B]).
 
 ex_should_player_be_refreshed(C, Name) ->
     case pgsql:equery(
