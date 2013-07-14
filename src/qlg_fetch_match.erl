@@ -73,7 +73,5 @@ fetch_and_store(#state { id = Id }) ->
     {ok, JSON} = ql_fetch:match(Id),
     %% Do this last as a confirmation we got through the other parts
     %% This ensures an idempotent database.
-    {ok, 1} = qlg_pgsql_srv:store_match(
-                Id,
-                term_to_binary(JSON, [compressed])),
+    {ok, 1} = qlg_db:store_match(Id, term_to_binary(JSON, [compressed])),
     ok.
