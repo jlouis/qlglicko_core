@@ -22,10 +22,10 @@ squery(Worker, Sql, Timeout) ->
     gen_server:call(Worker, {squery, Sql}, Timeout).
 
 equery(Worker, Sql, Params) ->
-    gen_server:call(Worker, {squery, Sql, Params}, infinity).
+    gen_server:call(Worker, {equery, Sql, Params}, infinity).
 
 equery(Worker, Sql, Params, Timeout) ->
-    gen_server:call(Worker, {squery, Sql, Params}, Timeout).
+    gen_server:call(Worker, {equery, Sql, Params}, Timeout).
 
 start_link(Args) ->
     gen_server:start_link(?MODULE, Args, []).
@@ -43,7 +43,7 @@ handle_call({squery, Sql}, _From, #state { conn = Conn } = State) ->
 handle_call({equery, Stmt, Params}, _From, #state { conn = Conn } = State) ->
     {reply, pgsql:equery(Conn, Stmt, Params), State};
 handle_call(_Requrest, _From, State) ->
-    {reply, {error, unknown}, State}.
+    {reply, {error, unknown_handle_call}, State}.
 
 handle_cast(_Msg, State) ->
     {stop, impossible, State}.
