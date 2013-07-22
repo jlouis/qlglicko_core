@@ -1,4 +1,4 @@
--module(qlglicko_timer).
+-module(qlg_timer).
 
 -behaviour(gen_server).
 
@@ -81,8 +81,7 @@ refill_players() ->
     ok.
 
 refill_matches() ->
-    {ok, _, Matches} =
-        qlg_pgsql_srv:matches_to_fetch(),
+    {ok, Matches} = qlg_db:matches_to_fetch(66),
     lager:debug("Submitting ~B match fetch jobs", [length(Matches)]),
     [qlg_fetch_match_pool:fetch_match(M) || {M} <- Matches],
     ok.
