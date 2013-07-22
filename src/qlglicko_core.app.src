@@ -14,7 +14,8 @@
                   gproc,
                   epgsql,
                   poolboy,
-                  jsx
+                  jsx,
+                  glicko2
                  ]},
   {modules, []},
   {mod, { qlglicko_app, []}},
