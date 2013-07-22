@@ -20,7 +20,6 @@
          tournament_matches/1,
          select_player/1,
          players_to_refresh/0,
-         matches_to_fetch/0,
          matches_to_analyze/0,
          mark_analyzed/1,
          fetch_match/1,
@@ -80,9 +79,6 @@ should_player_be_refreshed(Id) ->
 tournament_matches(T) ->
     call({tournament_matches, T}).
 
-matches_to_fetch() ->
-    call(matches_to_fetch).
-
 refresh_player(Id) ->
     call({refresh_player, Id}).
 
@@ -124,9 +120,6 @@ handle_call(all_players, _From,
 handle_call(all_tournaments, _From,
             #state { conn = C } = State) ->
     Reply = ex_all_tournaments(C),
-    {reply, Reply, State};
-handle_call(matches_to_fetch, _From, #state { conn = C } = State) ->
-    Reply = ex_matches_to_fetch(C),
     {reply, Reply, State};
 handle_call(matches_to_analyze, _From, #state { conn = C } = State) ->
     Reply = ex_matches_to_analyze(C),
@@ -221,9 +214,6 @@ ex_tournament_matches(C, T) ->
           "WHERE t.id = $1 AND played BETWEEN t.t_from and t.t_to",
           [T]),
     Matches.
-
-ex_matches_to_fetch(C) ->
-    pgsql:equery(C, "SELECT id FROM matches_to_refresh LIMIT 66").
 
 ex_players_to_refresh(C) ->
     pgsql:equery(C, "SELECT id,name,age_days FROM players_to_update "

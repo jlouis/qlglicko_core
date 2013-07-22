@@ -2,6 +2,7 @@
 
 -export([
          declare_match/1,
+         matches_to_fetch/1,
          player_stats/1,
          store_match/2
         ]).
@@ -22,6 +23,10 @@ declare_match(Id) ->
     {ok, _, Entries} =
         equery(processing, "SELECT processing.declare_match($1)", [Id]),
     {ok, Entries}.
+
+matches_to_fetch(Limit) ->
+    {ok, _, Matches} = equery(processing, "SELECT id FROM processing.matches_to_fetch LIMIT $1", [Limit]),
+    {ok, Matches}.
 
 %% Queries
 %% --------------------------------------------------
