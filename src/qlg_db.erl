@@ -3,6 +3,8 @@
 -export([
          declare_match/1,
          matches_to_fetch/1,
+         matches_to_analyze/1,
+         players_to_refresh/1,
          player_stats/1,
          store_match/2
         ]).
@@ -27,6 +29,20 @@ declare_match(Id) ->
 matches_to_fetch(Limit) ->
     {ok, _, Matches} = equery(processing, "SELECT id FROM processing.matches_to_fetch LIMIT $1", [Limit]),
     {ok, Matches}.
+
+matches_to_analyze(Limit) ->
+    {ok, _, Matches} = equery(processing,
+                              "SELECT id FROM processing.matches_to_analyze "
+                              "LIMIT $1", [Limit]),
+    {ok, Matches}.
+
+players_to_refresh(Limit) ->
+    {ok, _, Players} = equery(processing,
+                              "SELECT id, name, age_days "
+                              "FROM processing.players_to_refresh "
+                              "ORDER BY age_days DESC "
+                              "LIMIT $1", [Limit]),
+    {ok, Players}.
 
 %% Queries
 %% --------------------------------------------------

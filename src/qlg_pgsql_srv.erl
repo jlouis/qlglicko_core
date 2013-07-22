@@ -19,8 +19,6 @@
          bump_alive/1,
          tournament_matches/1,
          select_player/1,
-         players_to_refresh/0,
-         matches_to_analyze/0,
          mark_analyzed/1,
          fetch_match/1,
          refresh_player/1,
@@ -64,14 +62,8 @@ mk_player(Name) ->
 select_player(Name) ->
     call({select_player, Name}).
 
-matches_to_analyze() ->
-    call(matches_to_analyze).
-
 mark_analyzed(Id) ->
     call({mark_analyzed, Id}).
-
-players_to_refresh() ->
-    call(players_to_refresh).
 
 should_player_be_refreshed(Id) ->
     call({should_player_be_refreshed, Id}).
@@ -120,12 +112,6 @@ handle_call(all_players, _From,
 handle_call(all_tournaments, _From,
             #state { conn = C } = State) ->
     Reply = ex_all_tournaments(C),
-    {reply, Reply, State};
-handle_call(matches_to_analyze, _From, #state { conn = C } = State) ->
-    Reply = ex_matches_to_analyze(C),
-    {reply, Reply, State};
-handle_call(players_to_refresh, _From, #state { conn = C } = State) ->
-    Reply = ex_players_to_refresh(C),
     {reply, Reply, State};
 handle_call({select_player, Name}, _From, #state { conn = C } = State) ->
     Reply = ex_select_player(C, Name),
@@ -186,11 +172,6 @@ ex_fetch_match(C, Id) ->
                              [Id]),
     {ok, Content}.
 
-ex_matches_to_analyze(C) ->
-    pgsql:equery(
-      C,
-      "SELECT id FROM matches_to_analyze LIMIT 4000").
-
 ex_all_tournaments(C) ->
     {ok, _, Tournaments} =
         pgsql:equery(
@@ -214,10 +195,6 @@ ex_tournament_matches(C, T) ->
           "WHERE t.id = $1 AND played BETWEEN t.t_from and t.t_to",
           [T]),
     Matches.
-
-ex_players_to_refresh(C) ->
-    pgsql:equery(C, "SELECT id,name,age_days FROM players_to_update "
-                    "ORDER BY age_days DESC LIMIT 66").
 
 ex_select_player(C, Name) ->
     pgsql:equery(C, "SELECT id,name FROM player WHERE name = $1",
