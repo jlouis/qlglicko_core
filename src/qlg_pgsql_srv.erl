@@ -23,7 +23,6 @@
          fetch_match/1,
          refresh_player/1,
          remove_active_player/1,
-         should_player_be_refreshed/1,
          mk_player/1
         ]).
 
@@ -65,9 +64,6 @@ select_player(Name) ->
 mark_analyzed(Id) ->
     call({mark_analyzed, Id}).
 
-should_player_be_refreshed(Id) ->
-    call({should_player_be_refreshed, Id}).
-
 tournament_matches(T) ->
     call({tournament_matches, T}).
 
@@ -97,10 +93,6 @@ init([]) ->
     {ok, #state{ conn = C}}.
 
 %% @private
-handle_call({should_player_be_refreshed, Id}, _From,
-            #state { conn = C } = State) ->
-    Reply = ex_should_player_be_refreshed(C, Id),
-    {reply, Reply, State};
 handle_call({fetch_match, Id}, _From,
             #state { conn = C } = State) ->
     Reply = ex_fetch_match(C, Id),
@@ -239,16 +231,6 @@ ex_add_to_hall_of_fame(C, Id, Name) ->
     	"DELETE FROM hall_of_fame WHERE id = $1 AND name = $2", [Id, Name]),
     pgsql:equery(C,
          "INSERT INTO hall_of_fame (id, name, entry) VALUES ($1, $2, now())", [Id, Name]).
-
-ex_should_player_be_refreshed(C, Name) ->
-    case pgsql:equery(
-           C,
-           "SELECT id, lastupdate FROM players_to_update WHERE id = $1", [Name]) of
-        {ok, _, []} ->
-            false;
-        {ok, _, [_|_]} ->
-            true
-    end.
 
 ex_store_duel_match(C, Id,
                     #duel_match {

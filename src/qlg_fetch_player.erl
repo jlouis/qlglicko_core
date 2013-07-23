@@ -120,7 +120,7 @@ fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
     ok.
 
 run_fetch_job(#state { id = Id } = State) ->
-    case qlg_pgsql_srv:should_player_be_refreshed(Id) of
+    case qlg_db:player_refreshable(Id) of
       true -> fetch_and_store(State);
       false -> ok
     end.

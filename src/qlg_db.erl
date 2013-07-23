@@ -5,6 +5,7 @@
          matches_to_fetch/1,
          matches_to_analyze/1,
          players_to_refresh/1,
+         player_refreshable/1,
          player_stats/1,
          store_match/2
         ]).
@@ -43,6 +44,15 @@ players_to_refresh(Limit) ->
                               "ORDER BY age_days DESC "
                               "LIMIT $1", [Limit]),
     {ok, Players}.
+
+player_refreshable(P) ->
+    case equery(processing,
+                "SELECT id, lastupdate "
+                "FROM processing.players_to_refresh "
+                "WHERE id = $1", [P]) of
+        {ok, _, []} -> false;
+        {ok, _, [_|_]} -> true
+    end.
 
 %% Queries
 %% --------------------------------------------------
