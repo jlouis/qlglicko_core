@@ -60,7 +60,7 @@ player_rank(Player) ->
     {ok, _, Entries} =
         equery(web,
                "SELECT tournament, map, rank, rd FROM web.player_rankings "
-               "WHERE player = $1 "
+               "WHERE lower(player) = lower($1) "
                "ORDER BY tournament ASC",
                [Player]),
     {ok, Entries}.
@@ -69,7 +69,7 @@ player_match_streak(Player) ->
     {ok, _, Entries} =
         equery(web,
                "SELECT map, res, played FROM web.player_match_streak "
-               "WHERE name = $1 "
+               "WHERE lower(name) = lower($1) "
                "ORDER BY played DESC "
                "LIMIT 150", [Player]),
     {ok, Entries}.

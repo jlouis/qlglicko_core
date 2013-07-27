@@ -2,7 +2,7 @@
 
 -export([rank/3,
          expected_score/4,
-	run/1, eprofile/0, fprofile/0,
+         run/1, eprofile/0, fprofile/0,
          predict/2,
          rate_game/2,
          matrix/1,
