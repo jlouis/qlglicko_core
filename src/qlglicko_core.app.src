@@ -15,7 +15,8 @@
                   epgsql,
                   poolboy,
                   jsx,
-                  glicko2
+                  glicko2,
+                  uuid
                  ]},
   {modules, []},
   {mod, { qlglicko_app, []}},

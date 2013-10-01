@@ -7,7 +7,8 @@
          rate_game/2,
          matrix/1,
          write_player_csv/2,
-         write_matrix/2]).
+         write_matrix/2
+        ]).
 
 -export([load_keep/1, unload_all/0, loader_looper/0]).
 -compile([{native, o3}, inline]).

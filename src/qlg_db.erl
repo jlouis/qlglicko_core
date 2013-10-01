@@ -7,7 +7,8 @@
          players_to_refresh/1,
          player_refreshable/1,
          player_stats/1,
-         store_match/2
+         store_match/2,
+         tournament_stats/2
         ]).
 
 %% External API
@@ -17,6 +18,14 @@ player_stats(Player) ->
     {ok, Streaks} = player_match_streak(Player),
     {ok, [{entries, Entries},
           {streaks, Streaks}]}.
+
+tournament_stats(Tourney, Count) ->
+    {ok, _, Entries} = equery(web,
+                              "SELECT player, map, rank, rd, sigma "
+                              "FROM web.tourney_ranking "
+                              "WHERE tournament = $1 "
+                              "  AND tourney = $2", [Count, Tourney]),
+    {ok, Entries}.
 
 store_match(Id, Data) ->
     {ok, _, Entries} = equery(processing, "SELECT processing.store_match($1, $2)", [Id, Data]),

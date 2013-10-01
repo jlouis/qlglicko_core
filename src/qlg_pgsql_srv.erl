@@ -216,10 +216,11 @@ ex_refresh_player(C, Id) ->
                            "WHERE id = $1", [Id]).
 
 ex_store_player(C, Name) ->
+    UUID = uuid:get_v4(),
     {ok, 1} = pgsql:equery(C,
-                           "INSERT INTO player (name, lastupdate)"
-                           "VALUES ($1, now() - '5 days' :: interval)",
-                           [Name]),
+                           "INSERT INTO player (id, name, lastupdate)"
+                           "VALUES ($1, $2, now() - '5 days' :: interval)",
+                           [UUID, Name]),
     ok.
 
 ex_remove_active_player(C, Id) ->

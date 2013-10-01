@@ -2,7 +2,8 @@ PROJECT = qlglicko_core
 
 ERLC_OPTS = +debug_info '+{parse_transform, lager_transform}'
 
-DEPS = lager poolboy epgsql gproc jsx safetyvalve sfmt glicko2
+DEPS = lager poolboy epgsql gproc jsx safetyvalve sfmt glicko2 uuid
+dep_uuid = https://github.com/okeuday/uuid.git
 dep_lager = git://github.com/basho/lager.git 2.0.0
 dep_poolboy = git://github.com/devinus/poolboy.git master
 dep_epgsql = git://github.com/wg/epgsql.git master
