@@ -20,29 +20,28 @@ connect() ->
 	Conn.
 
 loop(Conn, {QueryStmt}) ->
-	run_loop(Conn, QueryStmt, pgsql:execute(Conn, QueryStmt, query_portal, 10*1000)).
+	run_loop(Conn, QueryStmt, pgsql:execute(Conn, QueryStmt, "one", 1*1000)).
 	
 run_loop(Conn, QueryStmt, {partial, Rows}) ->
 	[convert_row(Conn, R) || R <- Rows],
-	run_loop(Conn, QueryStmt, pgsql:execute(Conn, QueryStmt, query_portal, 10*1000));
+	io:format("."),
+	run_loop(Conn, QueryStmt, pgsql:execute(Conn, QueryStmt, "one", 1*1000));
 run_loop(Conn, _QueryStmt, {ok, Rows}) ->
 	[convert_row(Conn, R) || R <- Rows],
 	ok.
 
 prepare_statements(Conn) ->
 	{ok, QueryStmt} = 
-		pgsql:parse(
-			Conn, query_raw_match,
-			"SELECT id, content FROM raw_match", []),
-	ok = pgsql:bind(Conn, QueryStmt, query_portal, []),
+		pgsql:parse(Conn, "SELECT id, content FROM raw_match"),
+	ok = pgsql:bind(Conn, QueryStmt, "one", []),
 	{QueryStmt}.
 
-convert_row(Conn, [Id, Content]) ->
+convert_row(Conn, {Id, Content}) ->
 	Term = binary_to_term(Content),
-	insert(Conn, Id, jsx:to_binary(Term)).
+	insert(Conn, Id, jsx:encode(Term)).
 
 insert(Conn, Id, JSON) ->
-	ok = pgsql:equery(
+	{ok, 1} = pgsql:equery(
 		Conn,
 		"INSERT INTO core.raw_match_json (id, content) VALUES ($1, $2)",
 		[Id, JSON]).
