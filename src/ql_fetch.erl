@@ -78,27 +78,29 @@ alive_url(Name) ->
 
 request(URL) ->
     From = now(),
-    case httpc:request(get, {URL, []}, [], [{body_format, binary}]) of
-        {ok, {{_HTTPVer, 200, _RPhrase}, _Headers, Body}} ->
-            To = now(),
-            case overload(From, To) of
-                true ->
-                    ok = lager:info("Overload at QL Site"),
-                    qlg_overload:overload(),
-                    ok;
-                false ->
-                    ok
-            end,
-            {ok, Body};
-        {ok, {{_HttpVer, 502, _RPhrase}, _Headers, _Body} = SC} ->
+    case hackney:request(get, URL, [], <<>>, [{pool, default}]) of
+        {ok, 200, _, ClientRef} ->
+          {ok, Body} = hackney:body(ClientRef),
+          To = now(),
+          case overload(From, To) of
+          	true ->
+          	  ok = lager:info("Overload at QL Site"),
+          	  qlg_overload:overload(),
+          	  ok;
+          	false ->
+          	  ok
+          end,
+          hackney:close(ClientRef),
+          {ok, Body};
+        {ok, 502, _, _} ->
             lager:info("Got 502 Bad Gateway"),
             qlg_overload:timeout(),
-            {error, {status_code, SC}};
-        {ok, {{_HttpVer, 504, _RPhrase}, _Headers, _Body} = SC} ->
+            {error, {status_code, 502}};
+        {ok, 504, _, _} ->
             lager:info("Got 504 Gateway timeout"),
             qlg_overload:timeout(),
-            {error, {status_code, SC}};
-        {ok, Otherwise} ->
+            {error, {status_code, 504}};
+        {ok, Otherwise, _, _} ->
             ok = lager:info("Timeouts, assuming overload"),
             qlg_overload:overload(),
             {error, {status_code, Otherwise}};
