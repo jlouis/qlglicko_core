@@ -16,6 +16,7 @@
                   poolboy,
                   jsx,
                   glicko2,
+                  hackney,
                   uuid
                  ]},
   {modules, []},
