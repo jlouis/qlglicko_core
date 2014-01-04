@@ -146,7 +146,7 @@ rank_player(Db, Player, {R, RD, Sigma}, Idx, Conf) ->
               end || Opp <- LossOpp ],
     case Wins ++ Losses of
         [] ->
-            RD1 = glicko2:phi_star(RD, Sigma),
+            RD1 = 173.7178 * glicko2:phi_star(Sigma, RD / 173.7178),
             {R, RD1, Sigma};
         Opponents ->
             {R1, RD1, Sigma1} =
