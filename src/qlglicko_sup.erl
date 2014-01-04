@@ -42,7 +42,7 @@ init([]) ->
     Timer =
         {qlg_timer, {qlg_timer, start_link, []},
          permanent, 5000, worker, [qlg_timer]},
-    {ok, { {one_for_all, 3, 3600},
+    {ok, { {one_for_all, 10, 3600},
            [OverloadDetect,
             PgsqlSrv]
            ++ DBPools
