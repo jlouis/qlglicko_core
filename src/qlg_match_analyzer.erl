@@ -187,4 +187,8 @@ mk_match(Played, {Id1, {_P1, 999, S}},
                  {Id2, {_P2, 999, S}}) ->
     {ok, #duel_match { played = Played,
                        winner = Id1, winner_score = S,
-                       loser  = Id2, loser_score  = S}}.
+                       loser  = Id2, loser_score  = S}};
+mk_match(Played, {Id1, {_P1, _, _}},
+                 {Id2, {_P2, _, _}}) ->
+    {skip, {cannot_rank, Id1, Id2}}.
+
