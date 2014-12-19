@@ -15,7 +15,7 @@ player_matches(Player, [Week | NextWeek], Acc) ->
         {ok, Matches} ->
             lager:debug("Fetched - Player: ~s, Week: ~p: ~B",
                         [Player, Week, length(Matches)]),
-            timer:sleep(3000), % Wait a bit before fetching next week
+            timer:sleep(2000), % Wait a bit before fetching next week
             player_matches(Player, NextWeek, Matches ++ Acc);
         {error, Reason} ->
             {error, Reason}
@@ -111,7 +111,7 @@ request(URL) ->
     end.
 
 overload(From, To) ->
-    calc_interval(From, To) > 4000.
+    calc_interval(From, To) > 6000.
 
 calc_interval({FMega, FSec, FMicro} = F, {TMega, TSec, TMicro} = T)
   when F < T ->
