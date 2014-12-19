@@ -8,8 +8,10 @@
 
 migrate() ->
 	Conn = connect(),
-	Prepare = prepare_statements(Conn),
-	loop(Conn, Prepare),
+	pgsql:equery(Conn, "BEGIN"),
+	setup(Conn),
+	loop(Conn),
+	pgsql:equery(Conn, "COMMIT"),
 	disconnect(Conn).
 	
 disconnect(Conn) ->
@@ -19,26 +21,36 @@ connect() ->
 	{ok, Conn} = pgsql:connect(?HOSTNAME, ?USERNAME, ?PASSWORD, [{database, "qlglicko"}]),
 	Conn.
 
-loop(Conn, {QueryStmt}) ->
-	run_loop(Conn, QueryStmt, pgsql:execute(Conn, QueryStmt, "one", 1*1000)).
+loop(Conn) ->
+	run_loop(Conn).
 	
-run_loop(Conn, QueryStmt, {partial, Rows}) ->
+run_loop(Conn) ->
+	{ok, Rows} = fetch(Conn),
 	[convert_row(Conn, R) || R <- Rows],
 	io:format("."),
-	run_loop(Conn, QueryStmt, pgsql:execute(Conn, QueryStmt, "one", 1*1000));
-run_loop(Conn, _QueryStmt, {ok, Rows}) ->
-	[convert_row(Conn, R) || R <- Rows],
-	ok.
-
-prepare_statements(Conn) ->
-	{ok, QueryStmt} = 
-		pgsql:parse(Conn, "SELECT id, content FROM raw_match"),
-	ok = pgsql:bind(Conn, QueryStmt, "one", []),
-	{QueryStmt}.
+	case Rows of
+ 		[] -> ok;
+		_ -> run_loop(Conn)
+	end.
 
 convert_row(Conn, {Id, Content}) ->
 	Term = binary_to_term(Content),
 	insert(Conn, Id, jsx:encode(Term)).
+
+setup(Conn) ->
+	{ok, [], []} = pgsql:equery(
+		Conn,
+		"DECLARE read_terms CURSOR FOR SELECT id, content FROM raw_match", []),
+	ok.
+
+fetch(Conn) ->
+	case pgsql:equery(
+		Conn,
+		"FETCH 10000 FROM read_terms",
+		[]) of
+		{ok, _, _, Rows} -> {ok, Rows};
+		{ok, 0} -> {ok, []}
+	end.
 
 insert(Conn, Id, JSON) ->
 	{ok, 1} = pgsql:equery(
