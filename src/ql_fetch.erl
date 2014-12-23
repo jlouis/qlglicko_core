@@ -15,7 +15,7 @@ player_matches(Player, [Week | NextWeek], Acc) ->
         {ok, Matches} ->
             lager:debug("Fetched - Player: ~s, Week: ~p: ~B",
                         [Player, Week, length(Matches)]),
-            timer:sleep(2000), % Wait a bit before fetching next week
+            timer:sleep(1000), % Wait a bit before fetching next week
             player_matches(Player, NextWeek, Matches ++ Acc);
         {error, Reason} ->
             {error, Reason}
