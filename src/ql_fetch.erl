@@ -47,7 +47,7 @@ match(Match) ->
     URL = match_url(Match),
     case request(URL) of
         {ok, Body} ->
-            {ok, jsx:json_to_term(Body)};
+            {ok, jsx:decode(Body)};
         {error, Reason} ->
             {error, Reason}
     end.
