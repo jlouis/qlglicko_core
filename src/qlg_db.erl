@@ -36,7 +36,7 @@ tournament_stats(Tourney, Count) ->
 
 %% @todo delete this one once all matches have been moved
 store_match_json(ID, Added, Content, Analyzed) ->
-    equery(processing, "SELECT processing.store_match_json($1, $2, $3, $4)" , [ID, Added, Content, Analyzed]).
+    equery(processing, "SELECT processing.store_match_json($1 :: uuid, $2 :: timestamp, $3 :: jsonb, $4 :: boolean)" , [ID, Added, Content, Analyzed]).
 
 %% @todo delete this one once all matches have been moved
 mark_moved(ID) ->
