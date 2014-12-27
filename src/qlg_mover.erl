@@ -24,7 +24,12 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
     
 handle_info(work, State) ->
-    ok = process_moves(),
+    {ok, Limit} = application:get_env(qlglicko_core, matches_to_move),
+    TS = os:timestamp(),
+    ok = process_moves(Limit),
+    EndTS = os:timestamp(),
+    Diff = timer:now_diff(EndTS, TS) / (1000 * 1000),
+    lager:info("Processed ~B moves in ~B seconds", [Limit, Diff]),
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -38,8 +43,7 @@ code_change(_OldVsn, State, _Aux) ->
 %% INTERNALS
 %% ---------------------------
 
-process_moves() ->
-    {ok, Count} = application:get_env(qlglicko_core, matches_to_move),
+process_moves(Count) ->
     {ok, Matches} = qlg_db:matches_to_move(Count),
     move_matches(Matches).
 
