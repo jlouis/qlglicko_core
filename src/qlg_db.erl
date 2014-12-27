@@ -41,7 +41,8 @@ store_match_json(ID, Added, Content, Analyzed) ->
 
 %% @todo delete this one once all matches have been moved
 mark_moved(ID) ->
-    equery(processing, "SELECT processing.mark_raw_match_moved($1)", [ID]).
+    {ok, _} = equery(processing, "SELECT processing.mark_raw_match_moved($1)", [ID]),
+    ok.
 
 store_match(Id, Data) ->
     {ok, _, Entries} = equery(processing, "SELECT processing.store_match($1, $2)", [Id, Data]),
