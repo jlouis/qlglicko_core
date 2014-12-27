@@ -29,7 +29,7 @@ handle_info(work, State) ->
     ok = process_moves(Limit),
     EndTS = os:timestamp(),
     Diff = timer:now_diff(EndTS, TS) / (1000 * 1000),
-    lager:info("Processed ~B moves in ~B seconds", [Limit, Diff]),
+    lager:info("Processed ~B moves in ~p seconds", [Limit, Diff]),
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
