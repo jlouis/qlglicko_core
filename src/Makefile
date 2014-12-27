@@ -1,2 +1,2 @@
 all:
-	$(MAKE) -C .. app
+	$(MAKE) -C .. compile
