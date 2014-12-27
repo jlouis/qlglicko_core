@@ -11,6 +11,13 @@
          tournament_stats/2
         ]).
 
+%% Temporary exported functions to handle match movement.
+-export([
+         mark_moved/1,
+         matches_to_move/1,
+         store_match_json/4
+        ]).
+	
 %% External API
 %% --------------------------------------------------
 player_stats(Player) ->
@@ -27,6 +34,14 @@ tournament_stats(Tourney, Count) ->
                               "  AND tourney = $2", [Count, Tourney]),
     {ok, Entries}.
 
+%% @todo delete this one once all matches have been moved
+store_match_json(ID, Added, Content, Analyzed) ->
+    equery(processing, "SELECT processing.store_match_json($1, $2, $3, $4)" , [ID, Added, Content, Analyzed]).
+
+%% @todo delete this one once all matches have been moved
+mark_moved(ID) ->
+    equery(processing, "SELECT processing.mark_raw_match_moved($1)", [ID]).
+
 store_match(Id, Data) ->
     {ok, _, Entries} = equery(processing, "SELECT processing.store_match($1, $2)", [Id, Data]),
     {ok, Entries}.
@@ -35,6 +50,11 @@ declare_match(Id) ->
     {ok, _, Entries} =
         equery(processing, "SELECT processing.declare_match($1)", [Id]),
     {ok, Entries}.
+
+%% @todo delete this one once all matches have been moved
+matches_to_move(Limit) ->
+    {ok, _, Matches} = equery(processing, "SELECT id, added, content, analyzed FROM public.raw_match WHERE moved = false LIMIT $1", [Limit]),
+    {ok, Matches}.
 
 matches_to_fetch(Limit) ->
     {ok, _, Matches} = equery(processing, "SELECT id FROM processing.matches_to_fetch LIMIT $1", [Limit]),

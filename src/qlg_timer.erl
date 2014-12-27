@@ -44,6 +44,7 @@ handle_cast(_Msg, State) ->
 handle_info(refill, State) ->
     case application:get_env(qlglicko_core, refill_enable) of
       {ok, true} ->
+        ping_mover(),
         refill_players(),
         refill_matches(),
         refill_analyzer();
@@ -64,6 +65,9 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
+
+ping_mover() ->
+    qlg_mover ! work.
 
 refill_analyzer() ->
     {ok, Count} = application:get_env(qlglicko_core, analyzes_per_minute),

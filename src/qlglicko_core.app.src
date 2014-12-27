@@ -24,6 +24,7 @@
   {env, [
   	{players_per_minute, 61},
   	{matches_per_minute, 67},
-  	{analyzes_per_minute, 6007}
+  	{analyzes_per_minute, 6007},
+  	{matches_to_move, 6007}
   ]}
  ]}.
