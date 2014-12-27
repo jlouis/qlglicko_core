@@ -66,20 +66,23 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 refill_analyzer() ->
-    {ok, Matches} = qlg_db:matches_to_analyze(4000),
+    {ok, Count} = application:get_env(qlglicko_core, analyzes_per_minute),
+    {ok, Matches} = qlg_db:matches_to_analyze(Count),
     lager:debug("Submitting ~B matches for analysis", [length(Matches)]),
     qlg_match_analyzer:analyze_matches([M || {M} <- Matches]),
     ok.
 
 refill_players() ->
-    {ok, Players} = qlg_db:players_to_refresh(61),
+    {ok, Count} = application:get_env(qlglicko_core, players_per_minute),
+    {ok, Players} = qlg_db:players_to_refresh(Count),
     lager:debug("Submitting ~B player fetch jobs", [length(Players)]),
     [qlg_fetch_player_pool:fetch_player(Id, binary_to_list(Name), trunc(Age) + 1)
      || {Id, Name, Age} <- Players],
     ok.
 
 refill_matches() ->
-    {ok, Matches} = qlg_db:matches_to_fetch(67),
+    {ok, Count} = application:get_env(qlglicko_core, matches_per_minute),
+    {ok, Matches} = qlg_db:matches_to_fetch(Count),
     lager:debug("Submitting ~B match fetch jobs", [length(Matches)]),
     [qlg_fetch_match_pool:fetch_match(M) || {M} <- Matches],
     ok.
