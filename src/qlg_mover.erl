@@ -48,7 +48,7 @@ move_matches([M|Ms]) ->
     ok = move_match(M),
     move_matches(Ms).
     
-move_match([ID, Added, Content, Analyzed]) ->
+move_match({ID, Added, Content, Analyzed}) ->
     ok = qlg_db:store_match_json(ID, Added, move_content(Content), Analyzed),
     ok = qlg_db:mark_moved(ID),
     ok.
