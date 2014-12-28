@@ -62,7 +62,7 @@ store_match(ID, #duel_match {
     {ok, _} = equery(processing, "DELETE FROM duel_match WHERE id = $1", [ID]),
     {ok, 1} = equery(processing,
     	"INSERT INTO duel_match "
-    	"(id, played, map, winner, winner_store, loser, loser_score) "
+    	"(id, played, map, winner, winner_score, loser, loser_score) "
     	"VALUES ($1, $2, $3, $4, $5, $6, $7)",
     	[ID, Played, M, W, Ws, L, Ls]),
     ok.
