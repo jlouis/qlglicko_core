@@ -57,7 +57,6 @@ move_match({ID, Added, Content, Analyzed}) ->
     ok = qlg_db:mark_moved(ID),
     ok.
     
-move_content(undefined) -> undefined;
 move_content(Binary) ->
     Term = binary_to_term(Binary),
     iolist_to_binary(jsx:encode(Term)).

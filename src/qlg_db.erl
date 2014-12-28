@@ -55,7 +55,8 @@ declare_match(Id) ->
 
 %% @todo delete this one once all matches have been moved
 matches_to_move(Limit) ->
-    {ok, _, Matches} = equery(processing, "SELECT id, added, content, analyzed FROM public.raw_match WHERE moved = false LIMIT $1", [Limit]),
+    {ok, _, Matches} = equery(processing,
+    	"SELECT id, added, content, analyzed FROM public.raw_match WHERE moved = false AND content IS NOT NULL LIMIT $1", [Limit]),
     {ok, Matches}.
 
 matches_to_fetch(Limit) ->
