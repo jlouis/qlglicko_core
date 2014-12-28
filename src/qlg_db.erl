@@ -14,6 +14,7 @@
          player_stats/1,
          refresh_player/1,
          store_match/2,
+         store_duel/2,
          store_player/1,
          tournament_stats/2,
          update_alive/1
@@ -52,7 +53,11 @@ mark_moved(ID) ->
     {ok, _, _} = equery(processing, "SELECT processing.mark_raw_match_moved($1 :: uuid)", [ID]),
     ok.
 
-store_match(ID, #duel_match {
+store_match(Id, Data) ->
+    {ok, _, [{1}]} = equery(processing, "SELECT processing.store_match($1, $2)", [Id, Data]),
+    ok.
+
+store_duel(ID, #duel_match {
 		played = Played,
 		map = M,
 		winner = W,

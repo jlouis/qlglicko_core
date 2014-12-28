@@ -95,7 +95,7 @@ persist_duel_match(Id, JSON) ->
                     {ok, P1_Id} = add_new_player(P1S),
                     {ok, P2_Id} = add_new_player(P2S),
                     case mk_match(decode_timestamp(Played), Duration, Map, {P1_Id, P1S}, {P2_Id, P2S}) of
-                        {ok, M} -> qlg_db:store_match(Id, M);
+                        {ok, M} -> qlg_db:store_duel(Id, M);
                         {skip, Why} ->
                             error_logger:info_report([skipped, Why, Id]),
                             ok
