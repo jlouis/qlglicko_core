@@ -89,9 +89,10 @@ refresh_player(ID) ->
    ok.
 
 fetch_player(Name) ->
-    {ok, _, [Result]} = equery(web,
-        "SELECT id,name FROM player WHERE name = $1", [Name]),
-    {ok, Result}.
+    case equery(web, "SELECT id,name FROM player WHERE name = $1", [Name]) of
+        {ok, _, [Result]} -> {ok, Result};
+        {ok, _, []} -> not_found
+    end.
 
 fetch_match(ID) ->
     {ok, _, [{Content}]} = equery(

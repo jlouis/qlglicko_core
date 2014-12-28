@@ -113,11 +113,11 @@ persist_duel_match(Id, JSON) ->
 
 add_new_player({Name, _, _} = In) ->
     case qlg_db:fetch_player(Name) of
-        {ok, _, []} ->
+        not_found ->
             lager:debug("Adding new player ~p", [Name]),
             ok = qlg_db:store_player(Name),
             add_new_player(In);
-        {ok, _, [{Id, Name}]} ->
+        {ok, {Id, Name}} ->
             {ok, Id}
     end.
 
