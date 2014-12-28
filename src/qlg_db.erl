@@ -1,14 +1,20 @@
 -module(qlg_db).
+-include("match.hrl").
 
 -export([
          declare_match/1,
+         fetch_player/1,
+         fetch_match/1,
+         mark_analyzed/1,
          matches_to_fetch/1,
          matches_to_analyze/1,
          players_to_refresh/1,
          player_refreshable/1,
          player_stats/1,
          store_match/2,
-         tournament_stats/2
+         store_player/1,
+         tournament_stats/2,
+         update_alive/1
         ]).
 
 %% Temporary exported functions to handle match movement.
@@ -44,9 +50,50 @@ mark_moved(ID) ->
     {ok, _, _} = equery(processing, "SELECT processing.mark_raw_match_moved($1 :: uuid)", [ID]),
     ok.
 
-store_match(Id, Data) ->
-    {ok, _, Entries} = equery(processing, "SELECT processing.store_match($1, $2)", [Id, Data]),
-    {ok, Entries}.
+store_match(ID, #duel_match {
+		played = Played,
+		map = M,
+		winner = W,
+		winner_score = Ws,
+		loser = L,
+		loser_score = Ls }) ->
+    {ok, _} = equery(processing, "DELETE FROM duel_match WHERE id = $1", [ID]),
+    {ok, 1} = equery(processing,
+    	"INSERT INTO duel_match "
+    	"(id, played, map, winner, winner_store, loser, loser_score) "
+    	"VALUES ($1, $2, $3, $4, $5, $6, $7)",
+    	[ID, Played, M, W, Ws, L, Ls]),
+    ok.
+
+store_player(Name) ->
+    UUID = uuid:uuid_to_string(uuid:get_v4()),
+    {ok, 1} = equery(processing,
+        "INSERT INTO player (id, name, lastupdate) "
+        "VALUES ($1, $2, now() - '5 days' :: interval)",
+        [UUID, Name]),
+    ok.
+
+fetch_player(Name) ->
+    {ok, _, [Result]} = equery(web,
+        "SELECT id,name FROM player WHERE name = $1", [Name]),
+    {ok, Result}.
+
+fetch_match(ID) ->
+    {ok, _, [{Content}]} = equery(
+    	processing,
+    	"SELECT content FROM public.raw_match WHERE id = $1", [ID]),
+    {ok, Content}.
+
+update_alive(ID) ->
+    {ok, 1} = equery(processing,
+    	"UPDATE player SET last_alive_check = now() WHERE id = $1",
+    	[ID]),
+    ok.
+
+mark_analyzed(ID) ->
+    {ok, 1} = equery(processing,
+    	"UPDATE raw_match SET analyzed = true WHERE id = $1", [ID]),
+    ok.
 
 declare_match(Id) ->
     {ok, _, Entries} =

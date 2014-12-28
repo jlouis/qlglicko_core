@@ -94,7 +94,7 @@ fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
                 true ->
                     lager:debug("Performing alive check"),
                     Result = ql_fetch:alive_check(Name),
-                    qlg_pgsql_srv:bump_alive(Id),
+                    qlg_db:update_alive(Id),
                     case Result of
                         alive ->
                             ok;

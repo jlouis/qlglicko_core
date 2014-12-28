@@ -67,10 +67,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 analyze_duel_match(Id) ->
-    {ok, Bin} = qlg_pgsql_srv:fetch_match(Id),
+    {ok, Bin} = qlg_db:fetch_match(Id),
     JSON = binary_to_term(Bin),
     persist_match(Id, JSON),
-    qlg_pgsql_srv:mark_analyzed(Id).
+    qlg_db:mark_analyzed(Id).
 
 persist_match(Id, JSON) ->
     case proplists:get_value(<<"UNAVAILABLE">>, JSON) of
@@ -95,7 +95,7 @@ persist_duel_match(Id, JSON) ->
                     {ok, P1_Id} = add_new_player(P1S),
                     {ok, P2_Id} = add_new_player(P2S),
                     case mk_match(decode_timestamp(Played), Duration, Map, {P1_Id, P1S}, {P2_Id, P2S}) of
-                        {ok, M} -> qlg_pgsql_srv:store_match(Id, M);
+                        {ok, M} -> qlg_db:store_match(Id, M);
                         {skip, Why} ->
                             error_logger:info_report([skipped, Why, Id]),
                             ok
@@ -112,10 +112,10 @@ persist_duel_match(Id, JSON) ->
     end.
 
 add_new_player({Name, _, _} = In) ->
-    case qlg_pgsql_srv:select_player(Name) of
+    case qlg_db:select_player(Name) of
         {ok, _, []} ->
             lager:debug("Adding new player ~p", [Name]),
-            ok = qlg_pgsql_srv:mk_player(Name),
+            ok = qlg_db:store_player(Name),
             add_new_player(In);
         {ok, _, [{Id, Name}]} ->
             {ok, Id}
@@ -188,7 +188,7 @@ mk_match(Played, {Id1, {_P1, 999, S}},
     {ok, #duel_match { played = Played,
                        winner = Id1, winner_score = S,
                        loser  = Id2, loser_score  = S}};
-mk_match(Played, {Id1, {_P1, _, _}},
-                 {Id2, {_P2, _, _}}) ->
+mk_match(_Played, {Id1, {_P1, _, _}},
+                  {Id2, {_P2, _, _}}) ->
     {skip, {cannot_rank, Id1, Id2}}.
 
