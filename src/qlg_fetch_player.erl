@@ -90,7 +90,7 @@ fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
     WeeksToFetch = find_weeks(Age),
     case ql_fetch:player_matches(Name, WeeksToFetch) of
         {ok, []} ->
-            case qlg_pgsql_srv:alive_check(Id) of
+            case qlg_db:alive_check(Id) of
                 true ->
                     lager:debug("Performing alive check"),
                     Result = ql_fetch:alive_check(Name),
@@ -115,7 +115,7 @@ fetch_and_store(#state { id = Id, name = Name, age = Age}) ->
       {error, _Reason} ->
             ok
     end,
-    {ok, 1} = qlg_pgsql_srv:refresh_player(Id),
+    ok = qlg_db:refresh_player(Id),
     ok.
 
 run_fetch_job(#state { id = Id } = State) ->

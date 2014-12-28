@@ -2,6 +2,7 @@
 -include("match.hrl").
 
 -export([
+	alive_check/1,
          declare_match/1,
          fetch_player/1,
          fetch_match/1,
@@ -11,6 +12,7 @@
          players_to_refresh/1,
          player_refreshable/1,
          player_stats/1,
+         refresh_player/1,
          store_match/2,
          store_player/1,
          tournament_stats/2,
@@ -72,6 +74,19 @@ store_player(Name) ->
         "VALUES ($1, $2, now() - '5 days' :: interval)",
         [UUID, Name]),
     ok.
+
+alive_check(ID) ->
+    case equery(processing,
+    		"SELECT id FROM player "
+    		"WHERE id = $1 AND last_alive_check < (now() - '1 month' :: interval)", [ID]) of
+        {ok, _, []} -> false;
+        {ok, _, [_]} -> true
+    end.
+
+refresh_player(ID) ->
+   {ok, 1} = equery(processing,
+       "UPDATE player SET lastupdate = now() WHERE id = $1", [ID]),
+   ok.
 
 fetch_player(Name) ->
     {ok, _, [Result]} = equery(web,
