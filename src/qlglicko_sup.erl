@@ -23,9 +23,6 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    PgsqlSrv =
-        {qlg_pgsql_srv, {qlg_pgsql_srv, start_link, []},
-         permanent, 5000, worker, [qlg_pgsql_srv]},
     DBPools = make_pools(),
     OverloadDetect =
         {qlg_overload, {qlg_overload, start_link, []},
@@ -46,8 +43,7 @@ init([]) ->
         {qlg_timer, {qlg_timer, start_link, []},
          permanent, 5000, worker, [qlg_timer]},
     {ok, { {one_for_all, 10, 3600},
-           [OverloadDetect,
-            PgsqlSrv]
+           [OverloadDetect]
            ++ DBPools
            ++ [FetchPlayerPool,
                FetchMatchPool,
