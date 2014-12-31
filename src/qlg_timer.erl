@@ -44,10 +44,10 @@ handle_cast(_Msg, State) ->
 handle_info(refill, State) ->
     case application:get_env(qlglicko_core, refill_enable) of
       {ok, true} ->
-        ping_mover(),
+        %% ping_mover(),
         refill_players(),
-        refill_matches(),
-        refill_analyzer();
+        refill_matches();
+        %% refill_analyzer();
       {ok, false} ->
         ignore
     end,

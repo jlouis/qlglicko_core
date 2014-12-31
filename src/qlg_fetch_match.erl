@@ -66,10 +66,10 @@ code_change(_OldVsn, State, _Extra) ->
 
 %%%===================================================================
 
-fetch_and_store(#state { id = Id }) ->
-    lager:debug("Fetching match ~p", [Id]),
-    {ok, JSON} = ql_fetch:match(Id),
+fetch_and_store(#state { id = ID }) ->
+    lager:debug("Fetching match ~p", [ID]),
+    {ok, MatchData} = ql_fetch:match(ID),
     %% Do this last as a confirmation we got through the other parts
     %% This ensures an idempotent database.
-    ok = qlg_db:store_match(Id, term_to_binary(JSON, [compressed])),
+    ok = qlg_db:store_match(ID, MatchData),
     ok.

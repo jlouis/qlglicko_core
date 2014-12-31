@@ -45,12 +45,7 @@ request_player_matches(Player, Week) when is_list(Player) ->
 
 match(Match) ->
     URL = match_url(Match),
-    case request(URL) of
-        {ok, Body} ->
-            {ok, jsx:decode(Body)};
-        {error, Reason} ->
-            {error, Reason}
-    end.
+    request(URL).
 
 parse_matches(Body) ->
     {ok, REC} =
