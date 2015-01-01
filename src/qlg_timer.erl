@@ -76,7 +76,7 @@ refill_analyzer() ->
     {ok, Matches} = qlg_db:matches_to_analyze(Count),
     lager:debug("Submitting ~B matches for analysis", [length(Matches)]),
 
-    %% qlg_match_analyzer:analyze_matches([M || {M} <- Matches]),
+    qlg_match_analyzer:analyze_matches([M || {M} <- Matches]),
     ok.
 
 refill_players() ->
