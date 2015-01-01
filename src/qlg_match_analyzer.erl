@@ -68,21 +68,12 @@ code_change(_OldVsn, State, _Extra) ->
 
 analyze_duel_match(Id) ->
     {ok, Bin} = qlg_db:fetch_match(Id),
-    JSON = binary_to_term(Bin),
-    persist_match(Id, JSON),
+    Decoded = jsx:decode(Bin),
+    persist_duel_match(Id, Decoded),
     qlg_db:mark_analyzed(Id).
 
-persist_match(Id, JSON) ->
-    case proplists:get_value(<<"UNAVAILABLE">>, JSON) of
-        1 ->
-            ok;
-        undefined ->
-            persist_duel_match(Id, JSON)
-    end.
-
 persist_duel_match(Id, JSON) ->
-    case {proplists:get_value(<<"GAME_TYPE">>, JSON),
-          proplists:get_value(<<"RANKED">>, JSON)} of
+    case {proplists:get_value(<<"GAME_TYPE">>, JSON), proplists:get_value(<<"RANKED">>, JSON)} of
         {<<"duel">>, <<"1">>} ->
             %% Duel game type. And ranked. Find the winner and the loser
             case proplists:get_value(<<"SCOREBOARD">>, JSON) of
@@ -102,13 +93,9 @@ persist_duel_match(Id, JSON) ->
                     end,
                     ok;
                 _Otherwise ->
-                    error_logger:info_report([{unknown_match_structure,
-                                               JSON}]),
+                    error_logger:info_report([{unknown_match_structure, JSON}]),
                     ok
-            end;
-        {<<"duel">>, <<"0">>} ->
-            %% Unranked game, do not store it
-            ok
+            end
     end.
 
 add_new_player({Name, _, _} = In) ->
@@ -150,7 +137,7 @@ decode_rank(<<"2">>) -> 2;
 decode_rank(<<"-1">>) -> 999.
 
 mk_match(_Played, Duration, _Map, _P1, _P2) when Duration < 60 -> {skip, {game_length, Duration}};
-mk_match(Played, _Duration, Map, P1, P2)                      ->
+mk_match(Played, _Duration, Map, P1, P2)                       ->
     case mk_match(Played, P1, P2) of
         {ok, DM} ->
             {ok, DM#duel_match { map = Map }};

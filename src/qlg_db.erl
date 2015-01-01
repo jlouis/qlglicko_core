@@ -20,13 +20,12 @@
          update_alive/1
         ]).
 
-%% Temporary exported functions to handle match movement.
+%% Match processing
 -export([
-         mark_moved/1,
-         matches_to_move/1,
-         store_match_json/4
-        ]).
-	
+	process_unavailable/0,
+	process_unranked/0
+]).
+
 %% External API
 %% --------------------------------------------------
 player_stats(Player) ->
@@ -43,15 +42,13 @@ tournament_stats(Tourney, Count) ->
                               "  AND tourney = $2", [Count, Tourney]),
     {ok, Entries}.
 
-%% @todo delete this one once all matches have been moved
-store_match_json(ID, Added, Content, Analyzed) ->
-    {ok, _, _} = equery(processing, "SELECT processing.store_match_json($1 :: uuid, $2 :: timestamp, $3 :: jsonb, $4 :: boolean)" , [ID, Added, Content, Analyzed]),
-    ok.
-
-%% @todo delete this one once all matches have been moved
-mark_moved(ID) ->
-    {ok, _, _} = equery(processing, "SELECT processing.mark_raw_match_moved($1 :: uuid)", [ID]),
-    ok.
+process_unavailable() ->
+    {ok, _, [{Changed}]} = equery(processing, "SELECT processing.analyze_unavailable()", []),
+    Changed.
+    
+process_unranked() ->
+    {ok, _, [{Changed}]} = equery(processing, "SELECT processing.analyze_unranked()", []),
+    Changed.
 
 store_match(Id, Data) ->
     {ok, _, [{1}]} = equery(processing, "SELECT processing.store_match($1, $2)", [Id, Data]),
@@ -102,7 +99,7 @@ fetch_player(Name) ->
 fetch_match(ID) ->
     {ok, _, [{Content}]} = equery(
     	processing,
-    	"SELECT content FROM public.raw_match WHERE id = $1", [ID]),
+    	"SELECT content FROM core.raw_match WHERE id = $1", [ID]),
     {ok, Content}.
 
 update_alive(ID) ->
@@ -113,19 +110,13 @@ update_alive(ID) ->
 
 mark_analyzed(ID) ->
     {ok, 1} = equery(processing,
-    	"UPDATE raw_match SET analyzed = true WHERE id = $1", [ID]),
+    	"UPDATE core.raw_match SET analyzed = true WHERE id = $1", [ID]),
     ok.
 
 declare_match(Id) ->
     {ok, _, Entries} =
         equery(processing, "SELECT processing.declare_match($1)", [Id]),
     {ok, Entries}.
-
-%% @todo delete this one once all matches have been moved
-matches_to_move(Limit) ->
-    {ok, _, Matches} = equery(processing,
-    	"SELECT id, added, content, analyzed FROM public.raw_match WHERE moved = false AND content IS NOT NULL LIMIT $1", [Limit]),
-    {ok, Matches}.
 
 matches_to_fetch(Limit) ->
     {ok, _, Matches} = equery(processing, "SELECT id FROM processing.matches_to_fetch LIMIT $1", [Limit]),
