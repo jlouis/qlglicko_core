@@ -26,6 +26,11 @@
 	process_unranked/0
 ]).
 
+%% Queries
+-export([
+	duel_counts/0
+]).
+
 %% External API
 %% --------------------------------------------------
 player_stats(Player) ->
@@ -41,6 +46,12 @@ tournament_stats(Tourney, Count) ->
                               "WHERE tournament = $1 "
                               "  AND tourney = $2", [Count, Tourney]),
     {ok, Entries}.
+
+duel_counts() ->
+     {ok, _, Entries} = equery(web,
+     	"SELECT map, count(id) AS cnt "
+     	"FROM web.duel_match GROUP BY map ORDER BY cnt DESC", []),
+     Entries.
 
 process_unavailable() ->
     {ok, _, [{Changed}]} = equery(processing, "SELECT processing.analyze_unavailable()", []),
