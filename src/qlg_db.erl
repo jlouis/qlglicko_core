@@ -50,7 +50,7 @@ tournament_stats(Tourney, Count) ->
 
 player_rankings(Player, Map) ->
     {ok, _, Entries} = equery(web,
-        "SELECT date, player, map, rank, rd, sigma "
+        "SELECT date, rank, rd, sigma "
         "FROM web.player_rankings "
         "WHERE lower(player) = $1 "
         "  AND map = $2 "
