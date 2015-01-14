@@ -54,7 +54,7 @@ player_rankings(Player, Map) ->
         "FROM web.player_rankings "
         "WHERE lower(player) = $1 "
         "  AND map = $2 "
-        "ORDER BY date ASC", [Player, Map]),
+        "ORDER BY date DESC", [Player, Map]),
     case Entries of
       [] -> not_found;
       [_|_] -> {ok, Entries}
