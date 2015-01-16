@@ -29,7 +29,8 @@
 %% Queries
 -export([
 	duel_counts/0,
-	player_rankings/2
+	player_rankings/2,
+	player_overview/2
 ]).
 
 %% External API
@@ -59,6 +60,18 @@ player_rankings(Player, Map) ->
       [] -> not_found;
       [_|_] -> {ok, Entries}
     end.
+
+player_overview(Date, Player) ->
+  {ok, _, Entries} = equery(web,
+    "SELECT player, map, rank, rd, sigma "
+    "FROM web.player_rankings "
+    "WHERE lower(player) = $2 "
+    "  AND date = $1 "
+    "ORDER BY map", [Date, Player]),
+  case Entries of
+    [] -> not_found;
+    [_|_] -> {ok, Entries}
+  end.
 
 duel_counts() ->
      {ok, _, Entries} = equery(web,
