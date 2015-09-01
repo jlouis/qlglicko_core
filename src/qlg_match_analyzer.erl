@@ -95,7 +95,10 @@ persist_duel_match(Id, JSON) ->
                 _Otherwise ->
                     error_logger:info_report([{unknown_match_structure, JSON}]),
                     ok
-            end
+            end;
+       {undefined, undefined} ->
+           error_logger:info_report([{not_even_a_duel, JSON}]),
+           ok
     end.
 
 add_new_player({Name, _, _} = In) ->
