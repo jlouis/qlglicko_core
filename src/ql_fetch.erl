@@ -62,7 +62,7 @@ match_url(Match) when is_binary(Match) ->
       ["http://www.quakelive.com/stats/matchdetails",
        binary_to_list(Match)], "/").
 
-week_matches_url(Player, {YYYY, MM, DD}) ->
+week_matches_url(Player, {YYYY, MM, DD}) -> 
     Base = "http://www.quakelive.com/profile/matches_by_week",
     WeekStr = io_lib:format("~B-~2..0B-~2..0B", [YYYY, MM, DD]),
     string:join([Base, Player, lists:flatten(WeekStr)], "/").
