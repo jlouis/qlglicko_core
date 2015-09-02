@@ -52,7 +52,6 @@ iterate(0, _F, S) -> S;
 iterate(N, F, S) -> iterate(N-1, F, F(S)).
 
 anneal_worker(Ctl, S0) ->
-    sfmt:seed(erlang:now()),
     S = iterate(10, fun neighbour/1, S0),
     E = e(S),
     anneal_check(Ctl, S, E, S, E, 0).
@@ -68,7 +67,7 @@ anneal(Ctl, S, E, SB, EB, K) when K < ?KMAX, E > ?EMAX ->
     SN = neighbour(S),
     try
         EN = e(SN),
-        {NextS, NextE} = case p(E, EN, T) > sfmt:uniform() of
+        {NextS, NextE} = case p(E, EN, T) > rand:uniform() of
                              true  -> {SN, EN};
                              false -> {S, E}
                          end,
@@ -96,9 +95,9 @@ walk_sigma(Sigma) -> walk(Sigma, 0.008).
 walk_tau(Tau) -> walk(Tau, 0.2).
 
 walk(S, Scale) ->
-    case sfmt:uniform() of
-        K when K > 0.5 -> S+(sfmt:uniform() * Scale);
-        _ -> S-(sfmt:uniform() * Scale)
+    case rand:uniform() of
+        K when K > 0.5 -> S+(rand:uniform() * Scale);
+        _ -> S-(rand:uniform() * Scale)
     end.
 
 clamp(Lo, _Hi, X) when X < Lo -> Lo;
