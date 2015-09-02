@@ -58,22 +58,21 @@ parse_matches(Body) ->
     end.
 
 match_url(Match) when is_binary(Match) ->
-    string:join(
-      ["http://www.quakelive.com/stats/matchdetails",
-       binary_to_list(Match)], "/").
+    iolist_to_binary(["http://www.quakelive.com/stats/matchdetails", Match, "/"]).
 
 week_matches_url(Player, {YYYY, MM, DD}) -> 
     Base = "http://www.quakelive.com/profile/matches_by_week",
     WeekStr = io_lib:format("~B-~2..0B-~2..0B", [YYYY, MM, DD]),
-    string:join([Base, Player, lists:flatten(WeekStr)], "/").
+    iolist_to_binary([Base, Player, lists:flatten(WeekStr), "/"]).
 
 alive_url(Name) ->
-    string:join(
-      ["http://www.quakelive.com/profile/summary", Name], "/").
+    iolist_to_binary(["http://www.quakelive.com/profile/summary", Name, "/"]).
 
 request(URL) ->
+    Options = [{pool, default}],
+
     From = erlang:monotonic_time(),
-    case hackney:request(get, URL, [], <<>>, [{pool, default}]) of
+    case hackney:request(get, URL, [], <<>>, Options) of
         {ok, 200, _, ClientRef} ->
           {ok, Body} = hackney:body(ClientRef),
           To = erlang:monotonic_time(),
@@ -87,17 +86,20 @@ request(URL) ->
           end,
           hackney:close(ClientRef),
           {ok, Body};
-        {ok, 502, _, _} ->
+        {ok, 502, _, ClientRef} ->
             lager:info("Got 502 Bad Gateway"),
             qlg_overload:timeout(),
+            hackney:close(ClientRef),
             {error, {status_code, 502}};
-        {ok, 504, _, _} ->
+        {ok, 504, _, ClientRef} ->
             lager:info("Got 504 Gateway timeout"),
             qlg_overload:timeout(),
+            hackney:close(ClientRef),
             {error, {status_code, 504}};
-        {ok, Otherwise, _, _} ->
+        {ok, Otherwise, _, ClientRef} ->
             ok = lager:info("Timeouts, assuming overload"),
             qlg_overload:overload(),
+            hackney:close(ClientRef),
             {error, {status_code, Otherwise}};
         {error, Reason} ->
             lager:info("HTTP request error: ~p", [Reason]),

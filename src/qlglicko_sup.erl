@@ -36,9 +36,6 @@ init([]) ->
     MatchAnalyzer =
         {qlg_match_analyzer, {qlg_match_analyzer, start_link, []},
          permanent, 5000, worker, [qlg_match_analyzer]},
-    Mover =
-        {qlg_mover, {qlg_mover, start_link, []},
-           permanent, 5000, worker, [qlg_mover]},
     Timer =
         {qlg_timer, {qlg_timer, start_link, []},
          permanent, 5000, worker, [qlg_timer]},
@@ -48,7 +45,6 @@ init([]) ->
            ++ [FetchPlayerPool,
                FetchMatchPool,
                MatchAnalyzer,
-               Mover,
                Timer
               ]} }.
 

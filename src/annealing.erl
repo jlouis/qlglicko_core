@@ -86,9 +86,9 @@ anneal(Ctl, _, _, _, _, _) -> Ctl ! {done, self()}.
 
 temperature(T0, K) -> temperature(exp, T0, K).
 
-temperature(exp, T0, K) -> T0 * math:pow(0.995, K);
-temperature(fast, T0, K) -> T0 / K;
-temperature(boltz, T0, K) -> T0 / math:log(K).
+%% temperature(fast, T0, K) -> T0 / K;
+%% temperature(boltz, T0, K) -> T0 / math:log(K);
+temperature(exp, T0, K) -> T0 * math:pow(0.995, K).
 
 walk_rd(RD) -> walk(RD, 100).
 walk_sigma(Sigma) -> walk(Sigma, 0.008).

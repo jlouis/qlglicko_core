@@ -170,8 +170,8 @@ fprofile() ->
 run(Idxs) ->
     run(Idxs, "rankings.csv").
 
-run(Idxs, no_file) ->
-    rank(Idxs, glicko2:configuration(413, 0.08, 0.345), no_file);
+%% run(Idxs, no_file) ->
+%%    rank(Idxs, glicko2:configuration(413, 0.08, 0.345), no_file);
 run(Idxs, FName) ->
     Fd = setup_file(FName),   
     {ok, Db} = rank(Idxs, glicko2:configuration(413, 0.08, 0.345), Fd),
