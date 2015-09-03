@@ -58,15 +58,15 @@ parse_matches(Body) ->
     end.
 
 match_url(Match) when is_binary(Match) ->
-    iolist_to_binary(["http://www.quakelive.com/stats/matchdetails", Match, "/"]).
+    iolist_to_binary(["http://www.quakelive.com/stats/matchdetails/", Match, "/"]).
 
 week_matches_url(Player, {YYYY, MM, DD}) -> 
     Base = "http://www.quakelive.com/profile/matches_by_week",
     WeekStr = io_lib:format("~B-~2..0B-~2..0B", [YYYY, MM, DD]),
-    iolist_to_binary([Base, Player, lists:flatten(WeekStr), "/"]).
+    iolist_to_binary([Base, "/", Player, "/", lists:flatten(WeekStr), "/"]).
 
 alive_url(Name) ->
-    iolist_to_binary(["http://www.quakelive.com/profile/summary", Name, "/"]).
+    iolist_to_binary(["http://www.quakelive.com/profile/summary/", Name, "/"]).
 
 request(URL) ->
     Options = [{pool, default}],
