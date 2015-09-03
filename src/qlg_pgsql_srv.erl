@@ -158,7 +158,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 %%%===================================================================
 ex_fetch_match(C, Id) ->
-    {ok, _, [{Content}]} = pgsql:equery(
+    {ok, _, [{Content}]} = epgsql:equery(
                              C,
                              "SELECT content FROM raw_match WHERE id = $1",
                              [Id]),
@@ -166,7 +166,7 @@ ex_fetch_match(C, Id) ->
 
 ex_all_tournaments(C) ->
     {ok, _, Tournaments} =
-        pgsql:equery(
+        epgsql:equery(
           C,
           "SELECT id FROM tournament "
           "ORDER BY t_from ASC"),
@@ -174,14 +174,14 @@ ex_all_tournaments(C) ->
 
 ex_all_players(C) ->
     {ok, _, Players} =
-        pgsql:equery(
+        epgsql:equery(
           C,
           "SELECT id, name FROM player"),
     {ok, Players}.
 
 ex_tournament_matches(C, T) ->
     {ok, _, Matches} =
-        pgsql:equery(
+        epgsql:equery(
           C,
           "SELECT winner, loser, map FROM duel_match dm, tournament t "
           "WHERE t.id = $1 AND played BETWEEN t.t_from and t.t_to",
@@ -189,16 +189,16 @@ ex_tournament_matches(C, T) ->
     Matches.
 
 ex_select_player(C, Name) ->
-    pgsql:equery(C, "SELECT id,name FROM player WHERE name = $1",
+    epgsql:equery(C, "SELECT id,name FROM player WHERE name = $1",
                  [Name]).
 
 ex_mark_analyzed(C, Id) ->
-    {ok, 1} = pgsql:equery(
+    {ok, 1} = epgsql:equery(
                 C,
                 "UPDATE raw_match SET analyzed = true WHERE id = $1", [Id]).
 
 ex_alive_check(C, Id) ->
-    case pgsql:equery(C,
+    case epgsql:equery(C,
     		"SELECT id FROM player "
     		"WHERE id = $1 AND last_alive_check < (now() - '1 month' :: interval)", [Id]) of
     	{ok, _, []} -> false;
@@ -206,31 +206,31 @@ ex_alive_check(C, Id) ->
     end.
 
 ex_bump_alive(C, Id) ->
-    {ok, 1} = pgsql:equery(C,
+    {ok, 1} = epgsql:equery(C,
     	"UPDATE player SET last_alive_check = now() "
     	"WHERE id = $1", [Id]).
 
 ex_refresh_player(C, Id) ->
-    {ok, 1} = pgsql:equery(C,
+    {ok, 1} = epgsql:equery(C,
                            "UPDATE player SET lastupdate = now() "
                            "WHERE id = $1", [Id]).
 
 ex_store_player(C, Name) ->
     UUID = uuid:uuid_to_string(uuid:get_v4()),
-    {ok, 1} = pgsql:equery(C,
+    {ok, 1} = epgsql:equery(C,
                            "INSERT INTO player (id, name, lastupdate)"
                            "VALUES ($1, $2, now() - '5 days' :: interval)",
                            [UUID, Name]),
     ok.
 
 ex_remove_active_player(C, Id) ->
-   {ok, 1} = pgsql:equery(C,
+   {ok, 1} = epgsql:equery(C,
 	"DELETE FROM player WHERE id = $1", [Id]).
 
 ex_add_to_hall_of_fame(C, Id, Name) ->
-    pgsql:equery(C,
+    epgsql:equery(C,
     	"DELETE FROM hall_of_fame WHERE id = $1 AND name = $2", [Id, Name]),
-    pgsql:equery(C,
+    epgsql:equery(C,
          "INSERT INTO hall_of_fame (id, name, entry) VALUES ($1, $2, now())", [Id, Name]).
 
 ex_store_duel_match(C, Id,
@@ -241,8 +241,8 @@ ex_store_duel_match(C, Id,
                          winner_score = WinnerS,
                          loser = Loser,
                          loser_score = LoserS}) ->
-    {ok, _} = pgsql:equery(C, "DELETE FROM duel_match WHERE id = $1", [Id]),
-    {ok, 1} = pgsql:equery(
+    {ok, _} = epgsql:equery(C, "DELETE FROM duel_match WHERE id = $1", [Id]),
+    {ok, 1} = epgsql:equery(
                 C,
                 "INSERT INTO duel_match "
                 "(id, played, map, winner, winner_score, loser, loser_score) "
@@ -252,5 +252,5 @@ ex_store_duel_match(C, Id,
 db_connect() ->
     {Host, Name, PW, DB} =
         gproc:get_env(l, qlglicko_core, postgres, [app_env, error]),
-    pgsql:connect(Host, Name, PW, [{database, DB}]).
+    epgsql:connect(Host, Name, PW, [{database, DB}]).
 

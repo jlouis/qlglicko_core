@@ -8,17 +8,17 @@
 
 migrate() ->
 	Conn = connect(),
-	pgsql:equery(Conn, "BEGIN"),
+	epgsql:equery(Conn, "BEGIN"),
 	setup(Conn),
 	loop(Conn),
-	pgsql:equery(Conn, "COMMIT"),
+	epgsql:equery(Conn, "COMMIT"),
 	disconnect(Conn).
 	
 disconnect(Conn) ->
-	pgsql:close(Conn).
+	epgsql:close(Conn).
 	
 connect() ->
-	{ok, Conn} = pgsql:connect(?HOSTNAME, ?USERNAME, ?PASSWORD, [{database, "qlglicko"}]),
+	{ok, Conn} = epgsql:connect(?HOSTNAME, ?USERNAME, ?PASSWORD, [{database, "qlglicko"}]),
 	Conn.
 
 loop(Conn) ->
@@ -38,13 +38,13 @@ convert_row(Conn, {Id, Content}) ->
 	insert(Conn, Id, jsx:encode(Term)).
 
 setup(Conn) ->
-	{ok, [], []} = pgsql:equery(
+	{ok, [], []} = epgsql:equery(
 		Conn,
 		"DECLARE read_terms CURSOR FOR SELECT id, content FROM raw_match", []),
 	ok.
 
 fetch(Conn) ->
-	case pgsql:equery(
+	case epgsql:equery(
 		Conn,
 		"FETCH 10000 FROM read_terms",
 		[]) of
@@ -53,7 +53,7 @@ fetch(Conn) ->
 	end.
 
 insert(Conn, Id, JSON) ->
-	{ok, 1} = pgsql:equery(
+	{ok, 1} = epgsql:equery(
 		Conn,
 		"INSERT INTO core.raw_match_json (id, content) VALUES ($1, $2)",
 		[Id, JSON]).

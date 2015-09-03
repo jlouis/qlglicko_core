@@ -34,14 +34,14 @@ init(Args) ->
     [Hostname, Database, Username, Password] =
         [proplists:get_value(X, Args)
          || X <- [hostname, database, username, password]],
-    {ok, Conn} = pgsql:connect(Hostname, Username, Password,
+    {ok, Conn} = epgsql:connect(Hostname, Username, Password,
                                [{database, Database}]),
     {ok, #state{ conn = Conn }}.
 
 handle_call({squery, Sql}, _From, #state { conn = Conn } = State) ->
-    {reply, pgsql:squery(Conn, Sql), State};
+    {reply, epgsql:squery(Conn, Sql), State};
 handle_call({equery, Stmt, Params}, _From, #state { conn = Conn } = State) ->
-    {reply, pgsql:equery(Conn, Stmt, Params), State};
+    {reply, epgsql:equery(Conn, Stmt, Params), State};
 handle_call(_Requrest, _From, State) ->
     {reply, {error, unknown_handle_call}, State}.
 
@@ -52,7 +52,7 @@ handle_info(_Info, State) ->
     {noreply, State}.
 
 terminate(_Reason, #state { conn = Conn }) ->
-    ok = pgsql:close(Conn),
+    ok = epgsql:close(Conn),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
